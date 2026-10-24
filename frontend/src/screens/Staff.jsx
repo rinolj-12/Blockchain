@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import Notice from "../components/Notice.jsx";
 import { ClockIcon, FileIcon } from "../components/Icons.jsx";
 import { TransactionModal } from "../components/TransactionModal.jsx";
-import { QuorumVisualizer } from "../components/QuorumVisualizer.jsx";
 import {
   autoSubmitRemainingQuorum,
   loadStaffKey,
@@ -13,7 +12,7 @@ import {
   vaultRead,
 } from "../lib/chain.js";
 import { fromHex } from "../lib/crypto.js";
-import { fmtCountdown, fmtLocalTime, PAPER_NAMES, shortAddr } from "../lib/format.js";
+import { fmtCountdown, PAPER_NAMES, shortAddr } from "../lib/format.js";
 
 function parseKeyFile(text) {
   let j;
@@ -47,7 +46,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
 
   // Web3 Transaction Modal State
   const [txModal, setTxModal] = useState({
@@ -89,9 +87,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
   const revealMinutesLeft = Math.ceil(revealTimeLeft / 60);
   const revealWindowMinutes = Math.round(revealWindowDuration / 60);
 
-  const activeWindowDuration = v.paperSelected ? revealWindowDuration : seedWindowDuration;
   const activeWindowLeft = v.paperSelected ? revealTimeLeft : seedTimeLeft;
-  const isWindowExpired = v.examTime > 0 && timeLeft === 0 && activeWindowLeft === 0;
 
   // File upload handler
   const handleFileUpload = async (e) => {
@@ -103,8 +99,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
       const parsed = parseKeyFile(text);
       setKeyFile(parsed);
       saveStaffKey(currentIndex, parsed);
-      setIsScanning(true);
-      setTimeout(() => setIsScanning(false), 1200);
       setSuccess(`Loaded key file for Staff ${parsed.staffIndex || currentIndex}. Ready to submit.`);
     } catch (err) {
       setError(err.message);
@@ -134,8 +128,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
       const parsed = parseKeyFile(text);
       setKeyFile(parsed);
       saveStaffKey(currentIndex, parsed);
-      setIsScanning(true);
-      setTimeout(() => setIsScanning(false), 1200);
       setSuccess(`Loaded key file for Staff ${parsed.staffIndex || currentIndex}. Ready to submit.`);
     } catch (err) {
       setError(err.message);
@@ -152,8 +144,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
       const parsed = parseKeyFile(text);
       setKeyFile(parsed);
       saveStaffKey(currentIndex, parsed);
-      setIsScanning(true);
-      setTimeout(() => setIsScanning(false), 1200);
       setSuccess(`Quick-loaded official demo key for Staff ${currentIndex}. Ready to submit.`);
     } catch (err) {
       setError(err.message);
@@ -361,7 +351,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               </div>
             </div>
             {isRevealPhase && revealTimeLeft > 0 && (
-              <div className="banner-countdown-box" style={{ borderColor: "var(--mint-border)", background: "rgba(194, 128, 62, 0.08)" }}>
+              <div className="banner-countdown-box" style={{ borderColor: "var(--mint-border)", background: "var(--mint-tint)" }}>
                 <span className="banner-countdown-label" style={{ color: "var(--mint)" }}>Reveal Window Closes In</span>
                 <span className="banner-countdown-time mint-text">{fmtCountdown(revealTimeLeft)}</span>
                 <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>For remaining custodians</span>
@@ -372,15 +362,15 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
             <div className="metrics-chips">
               <div className="metric-chip">
                 <span className="chip-label">Staked Escrow:</span>
-                <span className="chip-val mint-text">1.00 ETH</span>
+                <span className="chip-val">1.00 ETH</span>
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Slashing Risk:</span>
-                <span className="chip-val mint-text">0.00 ETH (0%)</span>
+                <span className="chip-val">0.00 ETH (0%)</span>
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Duty Status:</span>
-                <span className="chip-val mint-text">✓ Fulfilled On-Chain</span>
+                <span className="chip-val">✓ Fulfilled On-Chain</span>
               </div>
             </div>
             {v.staff.some((s) => !s.pieceRevealed) && isRevealPhase && (
@@ -427,11 +417,11 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Slashing Penalty:</span>
-                <span className="chip-val red-text">-0.50 ETH (50%)</span>
+                <span className="chip-val">-0.50 ETH (50%)</span>
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Protected Upon Upload:</span>
-                <span className="chip-val mint-text">1.00 ETH (100%)</span>
+                <span className="chip-val">1.00 ETH (100%)</span>
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Reveal Window:</span>
@@ -467,7 +457,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                 </p>
               </div>
             </div>
-            <div className="banner-countdown-box" style={{ borderColor: "var(--red)", background: "rgba(239, 68, 68, 0.15)" }}>
+            <div className="banner-countdown-box" style={{ borderColor: "var(--red-border)", background: "var(--red-tint)" }}>
               <span className="banner-countdown-label" style={{ color: "var(--red)" }}>Window Closed</span>
               <span className="banner-countdown-time red-text">00:00:00</span>
               <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>Slashing Active</span>
@@ -481,7 +471,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Penalty Slashed:</span>
-                <span className="chip-val red-text">-0.50 ETH (50%)</span>
+                <span className="chip-val">-0.50 ETH (50%)</span>
               </div>
               <div className="metric-chip">
                 <span className="chip-label">Remaining Stake:</span>
@@ -516,164 +506,90 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
         </div>
       ) : null}
 
-      {/* Main Stats / Status Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-        {/* Individual Upload Status */}
-        <div className="card">
-          <span className="eyebrow">YOUR KEY UPLOAD STATUS</span>
-          <div style={{ margin: "10px 0" }}>
-            {isPieceRevealed ? (
-              <span className="pill pill-mint" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                ✓ Key Uploaded & Verified On-Chain
-              </span>
-            ) : isRevealPhase && revealTimeLeft > 0 ? (
-              <span className="pill pill-amber" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                ⚠️ Key Share Pending (Slashing Risk)
-              </span>
-            ) : isRevealPhase && revealTimeLeft === 0 ? (
-              <span className="pill pill-red" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                🚨 Missed Deadline (Slashable)
-              </span>
-            ) : isSeedRevealed ? (
-              <span className="pill pill-amber" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                🎲 Seed Registered ({v.seedsRevealed}/3 Seeds)
-              </span>
-            ) : (
-              <span className="pill pill-muted" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                ⏳ Pending Key Upload
-              </span>
-            )}
+      {/* 5-Custodian Live Slashing & Upload Roster */}
+      <section className="card roster-card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <span className="eyebrow">ALL 5 CUSTODIANS — LIVE DUTY & SLASHING STATUS</span>
+            <h3 className="card-title" style={{ margin: "2px 0 0", fontSize: "18px" }}>
+              Custodian Slashing Status Roster
+            </h3>
+            <p className="muted small" style={{ margin: "2px 0 0" }}>
+              Custodians who have uploaded have <b>0% slashing risk</b>. Remaining custodians must submit before the {revealWindowMinutes}-minute window expires to protect their 1.00 ETH deposit.
+            </p>
           </div>
-          <p className="muted small" style={{ margin: 0 }}>
-            {isPieceRevealed
-              ? `Your Shamir key share for Paper ${v.paperSelected ? PAPER_NAMES[v.selectedPaper] : ""} is verified on Ethereum. Deposit 100% protected (0% slashing risk).`
-              : isRevealPhase && revealTimeLeft > 0
-              ? `Submit within ${fmtCountdown(revealTimeLeft)} (${revealMinutesLeft}m) to protect your 1.00 ETH deposit from a 0.50 ETH penalty.`
-              : isRevealPhase && revealTimeLeft === 0
-              ? `Reveal window closed. Custodian #${currentIndex} did not upload; 0.50 ETH is subject to slashing.`
-              : isSeedRevealed && !v.paperSelected
-              ? `Entropy seed registered! Awaiting remaining custodians (${v.seedsRevealed}/3 seeds) to determine paper.`
-              : isSeedPhase
-              ? "Window open! Submit your seed now to complete your on-chain duty."
-              : "Upload and submit your key before or at the exam deadline."}
-          </p>
-        </div>
-
-        {/* Dynamic Countdown Timer with Reveal Window */}
-        <div className="card">
-          <span className="eyebrow">
-            {v.examTime === 0
-              ? "DEADLINE COUNTDOWN"
-              : timeLeft > 0
-              ? "PHASE 1: EXAM COUNTDOWN"
-              : isPieceRevealed
-              ? "PHASE 3: YOUR DUTY FULFILLED"
-              : isWindowExpired
-              ? "DUTY WINDOW EXPIRED"
-              : isRevealPhase
-              ? `PHASE 2: KEY REVEAL WINDOW (PAPER ${PAPER_NAMES[v.selectedPaper]})`
-              : "PHASE 2: SEED ENTROPY CONSENSUS"}
+          <span className="pill pill-muted mono small">
+            {v.piecesRevealed || 0}/5 Uploaded · {isUnlocked ? "Quorum Met" : "Awaiting Quorum"}
           </span>
-          <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
-            {v.examTime === 0 ? (
-              <span className="amber-text" style={{ fontSize: "22px" }}>Awaiting Start</span>
-            ) : timeLeft > 0 ? (
-              fmtCountdown(timeLeft)
-            ) : isPieceRevealed ? (
-              <span className="mint-text" style={{ fontSize: "22px" }}>✓ 1.00 ETH PROTECTED</span>
-            ) : isWindowExpired ? (
-              <span className="red-text" style={{ fontSize: "22px" }}>00:00:00 (EXPIRED)</span>
-            ) : isRevealPhase ? (
-              <span className={revealTimeLeft < 120 ? "red-text" : "amber-text"}>
-                {fmtCountdown(revealTimeLeft)}
-              </span>
-            ) : (
-              <span className={seedTimeLeft < 60 ? "red-text" : "amber-text"}>
-                {fmtCountdown(seedTimeLeft)}
-              </span>
-            )}
-          </div>
-          <p className="muted small" style={{ margin: 0 }}>
-            {v.examTime === 0 ? (
-              <span className="amber-text">Exam schedule awaiting start in Admin Portal.</span>
-            ) : timeLeft > 0 ? (
-              <>Time remaining until exam: <b>{fmtLocalTime(v.examTime)}</b> (keys locked on-chain)</>
-            ) : isPieceRevealed ? (
-              <span className="mint-text">
-                ✓ Key share verified on Ethereum. Custodian #{currentIndex} has zero slashing risk.
-                {revealTimeLeft > 0 ? ` (Remaining reveal window: ${fmtCountdown(revealTimeLeft)} for other custodians).` : ""}
-              </span>
-            ) : isWindowExpired ? (
-              <span className="red-text">Duty window closed. Custodian #{currentIndex} missed deadline; 50% deposit (0.50 ETH) is slashed!</span>
-            ) : isRevealPhase ? (
-              <span className="amber-text">
-                ⚠️ <b>Action Required:</b> {revealMinutesLeft} min remaining to upload key share or 0.50 ETH will be slashed! (Even if 3/5 quorum is reached, delinquent staff are still penalized).
-              </span>
-            ) : (
-              isSeedRevealed ? (
-                <span className="mint-text">✓ Your seed is registered on-chain. ({v.seedsRevealed}/3 seeds revealed for consensus).</span>
-              ) : (
-                <span className="amber-text">⚠️ <b>Seed Window Active:</b> Reveal entropy seed to randomly select paper.</span>
-              )
-            )}
-          </p>
         </div>
 
-        {/* Custodian Staking Deposit with Dynamic Slashing Alert */}
-        <div className="card">
-          <span className="eyebrow">YOUR STAKE DEPOSIT</span>
-          <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
-            <span className={staffMember?.penalised ? "red-text" : isPieceRevealed ? "mint-text" : isRevealPhase && !isPieceRevealed ? "amber-text" : "mint-text"}>
-              {staffMember?.penalised ? "0.50" : "1.00"}
-            </span>
-            <span className="muted" style={{ fontSize: "20px" }}> ETH</span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "10px 0" }}>
-            {staffMember?.penalised ? (
-              <span className="pill pill-red small">🚨 Slashed (-0.50 ETH)</span>
-            ) : isPieceRevealed ? (
-              <span className="pill pill-mint small">✓ 100% Protected (No Slash)</span>
-            ) : isSeedRevealed && !v.paperSelected ? (
-              <span className="pill pill-mint small">✓ Seed Duty Fulfilled</span>
-            ) : isRevealPhase && revealTimeLeft > 0 ? (
-              <span className="pill pill-amber small">⚠️ 0.50 ETH At Risk</span>
-            ) : isRevealPhase && revealTimeLeft === 0 ? (
-              <span className="pill pill-red small">🚨 0.50 ETH Slashable</span>
-            ) : (
-              <span className="pill pill-mint small">✓ Deposit Active (Escrow)</span>
-            )}
-            <span className="muted small mono">
-              {staffMember?.penalised ? "Collateral Slashed" : "Smart Contract Escrow"}
-            </span>
-          </div>
-          <p className="muted small" style={{ margin: 0 }}>
-            {staffMember?.penalised
-              ? "Missed reveal deadline. 0.50 ETH penalty was slashed; 0.50 ETH remains in contract."
-              : isPieceRevealed
-              ? "Duty fulfilled. Your full 1.00 ETH deposit is protected and refundable."
-              : isSeedRevealed && !v.paperSelected
-              ? "Entropy seed confirmed on-chain. Collateral safe."
-              : isRevealPhase && revealTimeLeft > 0
-              ? `Upload key share within ${fmtCountdown(revealTimeLeft)} (${revealMinutesLeft}m) to avoid 50% (0.50 ETH) slash.`
-              : isRevealPhase && revealTimeLeft === 0
-              ? "Window expired without upload. Subject to 50% penalty (0.50 ETH) upon settlement."
-              : "Submitting your key piece during the reveal window prevents stake slashing."}
-          </p>
-        </div>
-      </div>
+        <div className="roster-grid">
+          {[1, 2, 3, 4, 5].map((id) => {
+            const s = v.staff.find((item) => item.index === id) || v.staff[id - 1];
+            const isCurrent = id === currentIndex;
+            const uploaded = Boolean(s?.pieceRevealed);
+            const seedDone = Boolean(s?.seedRevealed);
+            const isPenalised = Boolean(s?.penalised);
 
-      {/* Unified 3-of-5 Shamir Quorum Visualizer & Custodian Slashing Roster */}
-      <QuorumVisualizer
-        vault={v}
-        role="staff"
-        currentStaffIndex={currentIndex}
-        isRevealPhase={isRevealPhase}
-        isSeedPhase={isSeedPhase}
-        revealTimeLeft={revealTimeLeft}
-        seedTimeLeft={seedTimeLeft}
-        revealMinutesLeft={revealMinutesLeft}
-        revealWindowMinutes={revealWindowMinutes}
-      />
+            let cardClass = "item-protected";
+            let statusBadge = <span className="pill pill-mint small">✓ Safe (0% Slash)</span>;
+            let statusMsg = "✓ Key Uploaded — 1.00 ETH Safe";
+
+            if (isPenalised) {
+              cardClass = "item-slashed";
+              statusBadge = <span className="pill pill-red small">🚨 Slashed</span>;
+              statusMsg = "-0.50 ETH Slashed (Delinquent)";
+            } else if (uploaded) {
+              cardClass = "item-protected";
+              statusBadge = <span className="pill pill-mint small">✓ Protected</span>;
+              statusMsg = "Key Verified · 1.00 ETH Safe";
+            } else if (isRevealPhase && revealTimeLeft > 0) {
+              cardClass = "item-at-risk";
+              statusBadge = <span className="pill pill-amber small">⚠️ {fmtCountdown(revealTimeLeft)}</span>;
+              statusMsg = `⚠️ Upload within ${revealMinutesLeft}m or -0.50 ETH Slashed`;
+            } else if (isRevealPhase && revealTimeLeft === 0) {
+              cardClass = "item-slashed";
+              statusBadge = <span className="pill pill-red small">🚨 Expired</span>;
+              statusMsg = "Missed Deadline · -0.50 ETH Slashable";
+            } else if (isSeedPhase && !seedDone) {
+              cardClass = "item-at-risk";
+              statusBadge = <span className="pill pill-amber small">🎲 Seed Due</span>;
+              statusMsg = "Seed Pending · Submit Now";
+            } else if (seedDone && !v.paperSelected) {
+              cardClass = "item-protected";
+              statusBadge = <span className="pill pill-mint small">🎲 Seed ✓</span>;
+              statusMsg = "Seed Contributed · Waiting Draw";
+            } else {
+              cardClass = "item-protected";
+              statusBadge = <span className="pill pill-muted small">⏳ Escrow</span>;
+              statusMsg = "1.00 ETH Staked (Escrow Active)";
+            }
+
+            return (
+              <a
+                key={id}
+                href={`#/staff/${id}`}
+                className={`roster-item ${cardClass} ${isCurrent ? "active-item" : ""}`}
+                title={`Click to switch to Custodian #${id}`}
+              >
+                <div className="roster-item-header">
+                  <div className="roster-index">
+                    <span>{uploaded ? "🛡️" : isRevealPhase ? "⚠️" : "👤"}</span>
+                    <span>Staff #{id}{isCurrent ? " (viewing)" : ""}</span>
+                  </div>
+                  {statusBadge}
+                </div>
+                <div className="mono small muted" style={{ fontSize: "11px" }}>
+                  {shortAddr(s?.address)}
+                </div>
+                <div className={`roster-status-line ${uploaded ? "mint-text" : isRevealPhase && !uploaded ? "amber-text" : "muted"}`}>
+                  {statusMsg}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Key Upload & Submission Card */}
       <section
@@ -683,9 +599,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
         onDrop={handleDrop}
         style={{ position: "relative", overflow: "hidden" }}
       >
-        {/* Animated Laser Scanning Line */}
-        {isScanning && <div className="laser-scanner-line" />}
-
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "8px" }}>
           <h2 className="card-title" style={{ margin: 0 }}>Upload Key File</h2>
           <span className="pill pill-muted mono small">Custodian #{currentIndex}</span>
@@ -956,51 +869,6 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
         {success && <div style={{ marginTop: "14px" }}><Notice tone="mint">{success}</Notice></div>}
       </section>
 
-      {/* Custodian Protocol Telemetry & Security Guarantees */}
-      <section className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <div>
-            <span className="eyebrow">PROTOCOL SECURITY ARCHITECTURE</span>
-            <h2 className="card-title" style={{ margin: "2px 0 0" }}>Custodian Cryptographic Guarantees</h2>
-          </div>
-          <span className="pill pill-muted mono small">EVM Contract Verification</span>
-        </div>
-
-        <div className="credential-grid">
-          <div className="credential-item">
-            <div className="credential-icon">🛡️</div>
-            <div className="credential-title">3-of-5 Shamir Secret Sharing</div>
-            <p className="credential-desc">
-              Your key share contains zero readable plaintext alone. The quadratic polynomial guarantees mathematical impossibility of reconstruction with fewer than 3 custodians.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ Polynomial Threshold (k=3, n=5)</span>
-            </div>
-          </div>
-
-          <div className="credential-item">
-            <div className="credential-icon">🥩</div>
-            <div className="credential-title">On-Chain Staking Security</div>
-            <p className="credential-desc">
-              Each staff member stakes 1.00 ETH on contract deployment. Submitting invalid shares or failing to reveal within the challenge window triggers an automatic slashing penalty.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ 1.00 ETH Staked & Protected</span>
-            </div>
-          </div>
-
-          <div className="credential-item">
-            <div className="credential-icon">⚡</div>
-            <div className="credential-title">Commit-Reveal Integrity</div>
-            <p className="credential-desc">
-              Before exam creation, a Keccak-256 fingerprint of your pieces was committed to ExamVault. The smart contract validates every submitted piece against this immutable commitment.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ Keccak-256 Validated</span>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

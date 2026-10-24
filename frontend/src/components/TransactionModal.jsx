@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { CheckIcon, PadlockIcon } from "./Icons.jsx";
+import { CheckIcon } from "./Icons.jsx";
 import { deployment } from "../lib/deployment.js";
 import { shortAddr } from "../lib/format.js";
 
 /**
- * High-tech Web3 Transaction Modal with holographic core visualizer,
- * matrix laser scanning, animated step progression, and live on-chain telemetry.
+ * Transaction progress modal: step tracker and live telemetry for a
+ * multi-step smart contract interaction.
  */
 export function TransactionModal({
   isOpen,
@@ -47,24 +47,14 @@ export function TransactionModal({
     <div className="tx-modal-overlay" role="dialog" aria-modal="true">
       <div className="tx-modal-backdrop" onClick={isComplete || error ? onClose : undefined} />
       <div className="tx-modal-card">
-        {/* Holographic Laser Sweep Bar */}
-        <div className="tx-laser-sweep" />
-
-        {/* Animated Holographic Core */}
         <div className="tx-modal-header">
           <div className={`tx-hologram-wrapper ${error ? "beacon-error" : isComplete ? "beacon-success" : "beacon-active"}`}>
             {error ? (
-              <span style={{ fontSize: "28px", fontWeight: "700" }}>✕</span>
+              <span style={{ fontSize: "26px", fontWeight: "700" }}>✕</span>
             ) : isComplete ? (
-              <CheckIcon size={32} color="#04201A" strokeWidth={3} />
+              <CheckIcon size={28} color="#ffffff" strokeWidth={3} />
             ) : (
-              <div className="tx-hologram-core">
-                <div className="tx-orbit-ring" />
-                <div className="tx-orbit-ring-reverse" />
-                <div className="tx-core-pulse">
-                  <span className="tx-core-symbol">🔐</span>
-                </div>
-              </div>
+              <div className="tx-hologram-core" />
             )}
           </div>
 

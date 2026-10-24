@@ -7,7 +7,6 @@ import { WalletProvider } from "./lib/wallet.jsx";
 import Admin from "./screens/Admin.jsx";
 import Staff from "./screens/Staff.jsx";
 import College from "./screens/College.jsx";
-import GenesisSetup from "./screens/GenesisSetup.jsx";
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -56,9 +55,6 @@ function parseRoute() {
   const parts = clean.split("/");
   const primary = parts[0]?.toLowerCase() || "";
 
-  if (primary === "setup" || primary === "genesis") {
-    return { name: "setup" };
-  }
   if (primary === "staff") {
     const id = parseInt(parts[1], 10);
     return { name: "staff", staffId: !isNaN(id) && id >= 1 && id <= 5 ? id : 1 };
@@ -103,32 +99,15 @@ function Portal() {
   const { toasts, removeToast } = useToasts();
 
   let body;
-  // Route "setup" (Genesis Auditor & Deployer) is accessible even if contract is not deployed yet!
-  if (route.name === "setup") {
-    body = <GenesisSetup vault={state} refresh={refresh} />;
-  } else if (!state) {
+  if (!state) {
     body = error ? (
-      <div className="card empty-card" style={{ maxWidth: "620px", margin: "40px auto", textAlign: "center", padding: "32px 24px" }}>
-        <div style={{ fontSize: "36px", marginBottom: "12px" }}>🏛️</div>
-        <h1 className="h1" style={{ fontSize: "22px", marginBottom: "8px" }}>
-          ExamVault Not Initialized Yet
-        </h1>
-        <p className="muted" style={{ margin: "0 auto 16px", maxWidth: "480px", lineHeight: "1.5" }}>
-          The local Ethereum node is active at <span className="mono">{deployment.rpcUrl}</span>, but the smart contract has not been deployed on this chain yet.
+      <div className="card empty-card">
+        <h1 className="h1">Cannot reach the vault</h1>
+        <p className="muted">
+          No answer from <span className="mono">{deployment.rpcUrl}</span>. Is the Hardhat node running
+          (<span className="mono">npm run node</span>)?
         </p>
-        <div style={{ marginBottom: "24px" }}>
-          <span className="mono small" style={{ color: "var(--amber)", background: "var(--amber-tint)", border: "1px solid var(--amber-border)", padding: "8px 12px", borderRadius: "6px", display: "inline-block" }}>
-            {friendlyError(error)}
-          </span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: "12px", flexWrap: "wrap" }}>
-          <a href="#/setup" className="btn btn-primary" style={{ textDecoration: "none", padding: "10px 20px" }}>
-            🚀 Open Genesis Setup to Deploy
-          </a>
-          <button className="btn btn-ghost" onClick={refresh}>
-            ↻ Check Status
-          </button>
-        </div>
+        <p className="muted small">{friendlyError(error)}</p>
       </div>
     ) : (
       <div className="card empty-card"><p className="muted">Reading the vault…</p></div>

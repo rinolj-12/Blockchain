@@ -11,11 +11,9 @@ import {
   useChainNow,
 } from "../lib/chain.js";
 import { deployment } from "../lib/deployment.js";
-import { fmtCountdown, fmtDuration, fmtEth, fmtLocalTime, PAPER_NAMES, shortAddr } from "../lib/format.js";
-import { QuorumVisualizer } from "../components/QuorumVisualizer.jsx";
+import { fmtCountdown, fmtDuration, fmtLocalTime, PAPER_NAMES } from "../lib/format.js";
 import { TransactionModal } from "../components/TransactionModal.jsx";
 import { SoulboundBadgeVisual } from "../components/BlockchainVisuals.jsx";
-import PaperVaultSection from "../components/PaperVaultSection.jsx";
 
 export default function Admin({ vault: v, refresh }) {
   const now = useChainNow();
@@ -435,9 +433,8 @@ export default function Admin({ vault: v, refresh }) {
         {/* Quorum / Key Progress Card */}
         <div className="card">
           <span className="eyebrow">CUSTODIAN KEY PROGRESS</span>
-          <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
-            <span className={isUnlocked ? "mint-text" : ""}>{keysUploaded}</span>
-            <span className="muted" style={{ fontSize: "20px" }}> / 5 Keys</span>
+          <div className={`mono ${isUnlocked ? "mint-text" : ""}`} style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
+            {keysUploaded}<span style={{ fontSize: "20px" }}> / 5 Keys</span>
           </div>
 
           <div className="progress-bar-bg" style={{ height: "8px", borderRadius: "999px", background: "var(--surface)", overflow: "hidden", margin: "10px 0" }}>
@@ -472,62 +469,14 @@ export default function Admin({ vault: v, refresh }) {
           {/* Soulbound Token Status Visual */}
           <SoulboundBadgeVisual tokenId={1} holdsToken={true} />
 
-          <p className="muted small" style={{ margin: "0 0 12px" }}>
-            Status:{" "}
-            <span className={isUnlocked ? "mint-text" : "amber-text"}>
-              {isUnlocked ? "Download Available" : "Locked (Awaiting Quorum)"}
-            </span>
+          <p className={`small ${isUnlocked ? "mint-text" : "amber-text"}`} style={{ margin: "0 0 12px" }}>
+            Status: {isUnlocked ? "Download Available" : "Locked (Awaiting Quorum)"}
           </p>
           <a className="btn btn-ghost btn-sm" href="#/college">
             Open Exam Centre Portal ↗
           </a>
         </div>
       </div>
-
-      {/* Interactive Holographic Quorum Visualizer */}
-      <QuorumVisualizer vault={v} role="admin" />
-
-      {/* Question Paper Vault & IPFS Storage Section */}
-      <PaperVaultSection />
-
-      {/* Protocol Telemetry & Cryptographic Verification */}
-      <section className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
-          <div>
-            <h2 className="card-title" style={{ margin: 0 }}>Smart Contract Protocol Verification</h2>
-            <p className="muted small" style={{ margin: "2px 0 0" }}>
-              Active on-chain parameters enforcing the tamper-proof exam distribution protocol
-            </p>
-          </div>
-          <span className="pill pill-mint mono small">Verified Solidity Bytecode</span>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
-          <div style={{ background: "var(--surface-2)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-            <span className="eyebrow">VAULT CONTRACT</span>
-            <div className="mono small mint-text" style={{ margin: "4px 0", wordBreak: "break-all" }}>{deployment.vault}</div>
-            <div className="muted small">ExamVault.sol (ERC-5192 Manager)</div>
-          </div>
-
-          <div style={{ background: "var(--surface-2)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-            <span className="eyebrow">SECURITY PARAMS</span>
-            <div className="mono small" style={{ margin: "4px 0", fontWeight: 600 }}>Min Stake: {fmtEth(v.minStake)}</div>
-            <div className="muted small">Seed Window: {v.seedWindow}s • Reveal: {v.revealWindow}s</div>
-          </div>
-
-          <div style={{ background: "var(--surface-2)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-            <span className="eyebrow">STORAGE & ENCRYPTION</span>
-            <div className="mono small" style={{ margin: "4px 0", fontWeight: 600 }}>AES-256-GCM + IPFS</div>
-            <div className="muted small">CIDv1 sha2-256 content-addressed</div>
-          </div>
-
-          <div style={{ background: "var(--surface-2)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border)" }}>
-            <span className="eyebrow">ACCESS CONTROL</span>
-            <div className="mono small" style={{ margin: "4px 0", fontWeight: 600 }}>Soulbound ERC-721/5192</div>
-            <div className="muted small">Non-transferable college access tokens</div>
-          </div>
-        </div>
-      </section>
 
       {/* Web3 Transaction Modal */}
       <TransactionModal
