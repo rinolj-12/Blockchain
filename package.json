@@ -6,7 +6,7 @@
   "scripts": {
     "compile": "node scripts/d-env.cjs hardhat compile",
     "test": "node scripts/d-env.cjs hardhat test",
-    "node": "node scripts/d-env.cjs hardhat node",
+    "node": "node scripts/d-env.cjs hardhat node --hostname 0.0.0.0",
     "demo:setup": "node scripts/d-env.cjs hardhat compile --quiet && node scripts/d-env.cjs node scripts/demo-setup.mjs",
     "demo:reveal": "node scripts/d-env.cjs node scripts/demo-reveal.mjs",
     "verify-hash": "node scripts/d-env.cjs node scripts/verify-hash.mjs",

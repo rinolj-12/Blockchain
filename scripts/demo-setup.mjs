@@ -26,6 +26,7 @@ const EXAM_DELAY = BigInt(process.env.EXAM_DELAY || 120);
 const STAKE_AMOUNT = "1";
 const EXAM_TITLE = "Data Structures — Semester 5";
 const NO_COMMIT = process.argv.includes("--no-commit");
+const START_NOW = process.argv.includes("--start") || process.argv.includes("--auto-start");
 
 const COLLEGES = [
   { account: 6, name: "Govt. College of Engineering", token: true },
@@ -152,21 +153,15 @@ async function main() {
   info(`Staff secret files written to ${path.relative(ROOT, path.join(outDir, "secrets"))}${path.sep}staff-<n>.json`);
   info("(the setter hands each file to one staff member, then deletes the key)");
 
-  // ------------------------------------------------------------- 4. setExam
-  const latest = await provider.getBlock("latest");
-  const examTime = BigInt(latest.timestamp) + EXAM_DELAY;
-  step(`Admin locks the exam time (now + ${EXAM_DELAY}s, measured on chain time) and the 3 fingerprints`);
-  await send("setExam", iface, () =>
-    vault.setExam(
-      examTime,
-      prepared.papers.map((p) => p.hash),
-      prepared.papers.map((p) => p.cid),
-    ),
-  );
-  info(`Exam time: ${new Date(Number(examTime) * 1000).toLocaleString()}  (unix ${examTime})`);
-  info("This can never be changed again — setExam only runs once.");
+  const preparedSecrets = staff.map((s, i) => loadSecret(outDir, prepared, i, s.address));
+  const preparedPapers = prepared.papers.map((p) => ({
+    label: p.label,
+    hash: p.hash,
+    cid: p.cid,
+    size: p.size,
+  }));
 
-  // ------------------------------------------------------------- 5. stake
+  // ------------------------------------------------------------- 4. stake
   step(`Each staff member stakes ${STAKE_AMOUNT} ETH (test ETH) as a deposit`);
   for (const [i, s] of staff.entries()) {
     const v = vault.connect(s);
@@ -174,25 +169,7 @@ async function main() {
     info(`Staff ${i + 1} staked ${STAKE_AMOUNT} ETH`);
   }
 
-  // ------------------------------------------------------------- 6. commit
-  if (NO_COMMIT) {
-    step("Skipping commits (--no-commit): each staff member commits from the portal Staff screen");
-    info(`Use the files in demo-data/secrets/ before ${new Date(Number(examTime) * 1000).toLocaleTimeString()}.`);
-  } else {
-    step("Each staff member commits: hashes of their 3 key pieces (A/B/C) + hash of a secret seed");
-    for (const [i, s] of staff.entries()) {
-      const secret = loadSecret(outDir, prepared, i, s.address);
-      const commits = secret.pieces.map((piece, paper) => pieceCommitment(vaultAddr, s.address, paper, piece));
-      const seedCommit = seedCommitment(vaultAddr, s.address, BigInt(secret.seed));
-      const v = vault.connect(s);
-      await send(`commitPieces staff ${i + 1}`, iface, () => v.commitPieces(commits));
-      await send(`commitSeed staff ${i + 1}`, iface, () => v.commitSeed(seedCommit));
-      info(`Staff ${i + 1}: pieces ${commits.map((c) => c.slice(0, 10) + "…").join(" ")}  seed ${seedCommit.slice(0, 10)}…`);
-    }
-    info("Only hashes go on-chain. The pieces and seeds stay secret until exam time.");
-  }
-
-  // ------------------------------------------------------------- 7. token
+  // ------------------------------------------------------------- 5. token
   step("Admin mints a soulbound access token for one college");
   for (const c of colleges) {
     if (c.token) {
@@ -204,7 +181,44 @@ async function main() {
     }
   }
 
-  // ------------------------------------------------------------- 8. files
+  // ------------------------------------------------------------- 6. setExam & commit (if START_NOW)
+  let examTime = 0n;
+  if (START_NOW) {
+    const latest = await provider.getBlock("latest");
+    examTime = BigInt(latest.timestamp) + EXAM_DELAY;
+    step(`Admin locks the exam time (now + ${EXAM_DELAY}s, measured on chain time) and the 3 fingerprints`);
+    await send("setExam", iface, () =>
+      vault.setExam(
+        examTime,
+        prepared.papers.map((p) => p.hash),
+        prepared.papers.map((p) => p.cid),
+      ),
+    );
+    info(`Exam time: ${new Date(Number(examTime) * 1000).toLocaleString()}  (unix ${examTime})`);
+    info("This can never be changed again — setExam only runs once.");
+
+    if (NO_COMMIT) {
+      step("Skipping commits (--no-commit): each staff member commits from the portal Staff screen");
+      info(`Use the files in demo-data/secrets/ before ${new Date(Number(examTime) * 1000).toLocaleTimeString()}.`);
+    } else {
+      step("Each staff member commits: hashes of their 3 key pieces (A/B/C) + hash of a secret seed");
+      for (const [i, s] of staff.entries()) {
+        const secret = preparedSecrets[i];
+        const commits = secret.pieces.map((piece, paper) => pieceCommitment(vaultAddr, s.address, paper, piece));
+        const seedCommit = seedCommitment(vaultAddr, s.address, BigInt(secret.seed));
+        const v = vault.connect(s);
+        await send(`commitPieces staff ${i + 1}`, iface, () => v.commitPieces(commits));
+        await send(`commitSeed staff ${i + 1}`, iface, () => v.commitSeed(seedCommit));
+        info(`Staff ${i + 1}: pieces ${commits.map((c) => c.slice(0, 10) + "…").join(" ")}  seed ${seedCommit.slice(0, 10)}…`);
+      }
+      info("Only hashes go on-chain. The pieces and seeds stay secret until exam time.");
+    }
+  } else {
+    step("Exam schedule left un-started: you can start the countdown anytime from the Admin Portal UI!");
+    info("To start the timer immediately from CLI instead, run: npm run demo:setup -- --start");
+  }
+
+  // ------------------------------------------------------------- 7. files
   step("Writing deployment files");
   const papersJsonPath = path.join(outDir, "papers.json");
   const papersJson = fs.existsSync(papersJsonPath) ? JSON.parse(fs.readFileSync(papersJsonPath, "utf8")) : {};
@@ -217,11 +231,26 @@ async function main() {
     ipfsGateway: papersJson.gateway ?? process.env.IPFS_GATEWAY ?? "/ipfs/",
     examTitle: EXAM_TITLE,
   };
+  const accountsObj = {
+    admin: admin.address,
+    staff: staff.map((s) => s.address),
+    colleges: colleges.map((c) => ({ name: c.name, address: c.signer.address, account: c.account, token: c.token })),
+  };
   const frontendFile = path.resolve(ROOT, process.env.FRONTEND_DEPLOYMENT || "frontend/src/deployment.json");
   fs.mkdirSync(path.dirname(frontendFile), { recursive: true });
   fs.writeFileSync(
     frontendFile,
-    JSON.stringify({ ...base, abi: { ExamVault: vaultArt.abi, CollegeAccessToken: tokenArt.abi } }, null, 2),
+    JSON.stringify(
+      {
+        ...base,
+        accounts: accountsObj,
+        preparedPapers,
+        preparedSecrets,
+        abi: { ExamVault: vaultArt.abi, CollegeAccessToken: tokenArt.abi },
+      },
+      null,
+      2,
+    ),
   );
   const demoFile = path.join(outDir, "deployment.json");
   fs.writeFileSync(
@@ -233,30 +262,51 @@ async function main() {
         minStake: MIN_STAKE,
         seedWindow: Number(SEED_WINDOW),
         revealWindow: Number(REVEAL_WINDOW),
-        accounts: {
-          admin: admin.address,
-          staff: staff.map((s) => s.address),
-          colleges: colleges.map((c) => ({ name: c.name, address: c.signer.address, account: c.account, token: c.token })),
-        },
+        accounts: accountsObj,
+        preparedPapers,
+        preparedSecrets,
       },
       null,
       2,
     ),
   );
+  // Also copy demo-secrets to frontend/public/demo-secrets for quick-load in the portal
+  const publicSecrets = path.resolve(ROOT, "frontend/public/demo-secrets");
+  fs.mkdirSync(publicSecrets, { recursive: true });
+  const secretsDir = path.join(outDir, "secrets");
+  if (fs.existsSync(secretsDir)) {
+    for (const f of fs.readdirSync(secretsDir)) {
+      fs.copyFileSync(path.join(secretsDir, f), path.join(publicSecrets, f));
+    }
+  }
   info(path.relative(ROOT, frontendFile));
   info(path.relative(ROOT, demoFile));
 
   // ------------------------------------------------------------- done
-  const secs = Number(examTime) - Math.floor(Date.now() / 1000);
-  console.log("\n=================================================================");
-  console.log(` Vault is LOCKED. Exam "${EXAM_TITLE}"`);
-  console.log(` opens at ${new Date(Number(examTime) * 1000).toLocaleTimeString()} (about ${Math.max(secs, 0)}s from now).`);
-  console.log("=================================================================");
-  console.log("Next steps:");
-  console.log("  npm run portal                                   open the printed URL and watch the countdown");
-  if (NO_COMMIT) console.log("  Staff screen: commit pieces + seed for each staff member before exam time");
-  console.log("  npm run demo:reveal                              staff 1-3 reveal at exam time (real wait)");
-  console.log("  npm run demo:reveal -- --fast --penalise --download   jump time, reveal, penalise, download");
+  if (START_NOW) {
+    const secs = Number(examTime) - Math.floor(Date.now() / 1000);
+    console.log("\n=================================================================");
+    console.log(` Vault is LOCKED. Exam "${EXAM_TITLE}"`);
+    console.log(` opens at ${new Date(Number(examTime) * 1000).toLocaleTimeString()} (about ${Math.max(secs, 0)}s from now).`);
+    console.log("=================================================================");
+    console.log("Next steps:");
+    console.log("  npm run portal                                   open the printed URL and watch the countdown");
+    if (NO_COMMIT) console.log("  Staff screen: commit pieces + seed for each staff member before exam time");
+    console.log("  npm run demo:reveal                              staff 1-3 reveal at exam time (real wait)");
+    console.log("  npm run demo:reveal -- --fast --penalise --download   jump time, reveal, penalise, download");
+  } else {
+    console.log("\n=================================================================");
+    console.log(` Vault is READY. Exam "${EXAM_TITLE}"`);
+    console.log(` Smart contracts deployed, 5 staff staked, college token minted.`);
+    console.log(` Exam countdown is ready to be started via the Web Portal!`);
+    console.log("=================================================================");
+    console.log("Portals to open (run: npm run portal):");
+    console.log("  🏛️ Admin Portal:    http://localhost:5173/#/admin   (click '🚀 Start Exam Countdown')");
+    console.log("  👥 Staff Portals:   http://localhost:5173/#/staff/1 (through /staff/5)");
+    console.log("  🏫 College Portal:  http://localhost:5173/#/college");
+    console.log("-----------------------------------------------------------------");
+    console.log("Tip: Run 'npm run demo:setup -- --start' if you prefer auto-starting from CLI.");
+  }
   provider.destroy();
 }
 

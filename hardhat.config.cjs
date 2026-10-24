@@ -3,9 +3,12 @@
 // The npm scripts already set them through scripts/d-env.cjs; this is a safety net
 // for a bare `npx hardhat ...` (compiler downloads happen after the config loads).
 const path = require("path");
-const D_CACHE = "D:/blockchain-exam-cache";
-process.env.LOCALAPPDATA = path.win32.normalize(`${D_CACHE}/localappdata`);
-process.env.APPDATA = path.win32.normalize(`${D_CACHE}/appdata`);
+const fs = require("fs");
+if (process.platform === "win32" && fs.existsSync("D:\\")) {
+  const D_CACHE = "D:/blockchain-exam-cache";
+  process.env.LOCALAPPDATA = path.win32.normalize(`${D_CACHE}/localappdata`);
+  process.env.APPDATA = path.win32.normalize(`${D_CACHE}/appdata`);
+}
 process.env.HARDHAT_DISABLE_TELEMETRY_PROMPT = "true";
 
 require("@nomicfoundation/hardhat-toolbox");

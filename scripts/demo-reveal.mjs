@@ -186,6 +186,13 @@ async function main() {
   console.log("=================================================================");
 
   const examTime = await vault.examTime();
+  if (examTime === 0n) {
+    console.error("\n✗ The exam countdown has not been started yet!");
+    console.error("  Open the Admin Portal (http://localhost:5173/#/admin) and click '🚀 Start Exam Countdown',");
+    console.error("  or run 'npm run demo:setup -- --start' to auto-start from CLI.\n");
+    provider.destroy();
+    process.exit(1);
+  }
   const seedWindow = await vault.seedWindow();
   const revealWindow = await vault.revealWindow();
 

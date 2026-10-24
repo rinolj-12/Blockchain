@@ -7,8 +7,9 @@ const { pathToFileURL } = require("node:url");
 const { spawnSync } = require("node:child_process");
 const { ethers } = require("hardhat");
 
+const os = require("node:os");
 const ROOT = path.resolve(__dirname, "..");
-const TEMP_ROOT = "D:\\temp"; // keep everything off C:
+const TEMP_ROOT = process.platform === "win32" && fs.existsSync("D:\\") ? "D:\\temp" : os.tmpdir();
 const PAPER_B = path.join(ROOT, "papers", "paper-B.md");
 
 function combos(n, k) {

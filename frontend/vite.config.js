@@ -11,6 +11,7 @@ export default defineConfig({
     dedupe: ["ethers", "shamir-secret-sharing", "multiformats"],
   },
   server: {
+    host: true,
     port: 5173,
     fs: { allow: [fileURLToPath(new URL("..", import.meta.url))] },
   },
