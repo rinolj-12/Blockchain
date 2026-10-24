@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import Notice from "../components/Notice.jsx";
 import { CheckIcon } from "../components/Icons.jsx";
 import { TransactionModal } from "../components/TransactionModal.jsx";
-import { QuorumVisualizer } from "../components/QuorumVisualizer.jsx";
 import {
   autoSubmitRemainingQuorum,
-  examPhase,
   friendlyError,
   readProvider,
   useChainNow,
@@ -44,7 +42,6 @@ export default function College({ vault: v, refresh }) {
   const keysUploaded = v.piecesRevealed || 0;
   const isUnlocked = v.unlocked || keysUploaded >= 3;
   const timeLeft = v.examTime > now ? v.examTime - now : 0;
-  const phase = examPhase(v, now);
 
   useEffect(() => () => result && URL.revokeObjectURL(result.url), [result]);
 
@@ -234,11 +231,8 @@ export default function College({ vault: v, refresh }) {
             <SoulboundBadgeVisual tokenId={1} holdsToken={true} />
             <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0", flexWrap: "wrap" }}>
               <span className="mono small muted">
-                Authorization verified on-chain at <b>Block #14</b> via non-transferable Soulbound Token #1.
+                Authorization verified on-chain via non-transferable Soulbound Token #1.
               </span>
-              <a href="#/setup" style={{ color: "var(--mint)", fontSize: "12px", textDecoration: "none", fontWeight: 600 }}>
-                Inspect Genesis Setup ↗
-              </a>
             </div>
             <p className="muted" style={{ margin: "4px 0 0" }}>
               Official Examination Hall Centre · Centre in-charge & invigilators download and print question papers for students once the custodian quorum is met.
@@ -294,9 +288,6 @@ export default function College({ vault: v, refresh }) {
         </div>
       </div>
 
-      {/* Holographic 3-of-5 Quorum Visualizer (Exam Centre Read-Only Monitor) */}
-      <QuorumVisualizer vault={v} role="college" />
-
       {/* Download Action Section */}
       <section className="card">
         <h2 className="card-title">Download Question Paper</h2>
@@ -335,7 +326,7 @@ export default function College({ vault: v, refresh }) {
 
       {/* Decrypted Exam Paper Preview (Appears when downloaded) */}
       {result && (
-        <section className="card" style={{ border: "2px solid var(--mint-border)", background: "rgba(24, 20, 16, 0.4)" }}>
+        <section className="card" style={{ border: "1px solid var(--mint-border)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
             <div>
               <span className="pill pill-mint inline-icon" style={{ marginBottom: "6px" }}>
@@ -354,7 +345,7 @@ export default function College({ vault: v, refresh }) {
           </div>
 
           <div style={{
-            background: "#070c12",
+            background: "var(--bg)",
             border: "1px solid var(--border)",
             borderRadius: "12px",
             padding: "20px",
@@ -374,62 +365,6 @@ export default function College({ vault: v, refresh }) {
         </section>
       )}
 
-      {/* Authorized Examination Centre Security Credentials & Cryptographic Audit */}
-      <section className="card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <div>
-            <span className="eyebrow">VERIFIED SECURITY CREDENTIALS</span>
-            <h2 className="card-title" style={{ margin: "2px 0 0" }}>Exam Centre Authorization & Decryption Protocol</h2>
-          </div>
-          <span className="pill pill-mint mono small">ERC-5192 Authenticated</span>
-        </div>
-
-        <div className="credential-grid">
-          <div className="credential-item">
-            <div className="credential-icon">🎓</div>
-            <div className="credential-title">ERC-5192 Soulbound Access Token</div>
-            <p className="credential-desc">
-              Your college centre is bound to Soulbound Token #1. Non-transferable by design, it guarantees that only the authenticated venue wallet can trigger the download sequence.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ Non-Transferable Token #1 Bound</span>
-            </div>
-          </div>
-
-          <div className="credential-item">
-            <div className="credential-icon">🌐</div>
-            <div className="credential-title">Decentralized IPFS Storage</div>
-            <p className="credential-desc">
-              Exam files are addressed by cryptographic content hash (CID) on IPFS. Tampering with any byte changes the CID and is immediately rejected by the smart contract.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ IPFS Content Addressing Verified</span>
-            </div>
-          </div>
-
-          <div className="credential-item">
-            <div className="credential-icon">🔒</div>
-            <div className="credential-title">Zero-Server Local Decryption</div>
-            <p className="credential-desc">
-              Decryption is executed purely in local browser memory via WebCrypto AES-256-GCM. Unencrypted exam questions never pass through any central web server or proxy.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ Client-Side In-Memory Execution</span>
-            </div>
-          </div>
-
-          <div className="credential-item">
-            <div className="credential-icon">📜</div>
-            <div className="credential-title">Immutable Download Audit Trail</div>
-            <p className="credential-desc">
-              Every invocation of <span className="mono">logDownload()</span> records an immutable Ethereum event with the exact block height and timestamp for university regulatory audit.
-            </p>
-            <div className="credential-status mint-text mono">
-              <span>✓ Smart Contract Timestamp Logged</span>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
