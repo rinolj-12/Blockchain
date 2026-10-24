@@ -361,7 +361,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               </div>
             </div>
             {isRevealPhase && revealTimeLeft > 0 && (
-              <div className="banner-countdown-box" style={{ borderColor: "var(--mint-border)", background: "rgba(59, 130, 246, 0.08)" }}>
+              <div className="banner-countdown-box" style={{ borderColor: "var(--mint-border)", background: "rgba(194, 128, 62, 0.08)" }}>
                 <span className="banner-countdown-label" style={{ color: "var(--mint)" }}>Reveal Window Closes In</span>
                 <span className="banner-countdown-time mint-text">{fmtCountdown(revealTimeLeft)}</span>
                 <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>For remaining custodians</span>
@@ -662,94 +662,18 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
         </div>
       </div>
 
-      {/* 5-Custodian Live Slashing & Upload Roster */}
-      <section className="card roster-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <div>
-            <span className="eyebrow">ALL 5 CUSTODIANS — LIVE DUTY & SLASHING STATUS</span>
-            <h3 className="card-title" style={{ margin: "2px 0 0", fontSize: "18px" }}>
-              Custodian Slashing Status Roster
-            </h3>
-            <p className="muted small" style={{ margin: "2px 0 0" }}>
-              Custodians who have uploaded have <b>0% slashing risk</b>. Remaining custodians must submit before the {revealWindowMinutes}-minute window expires to protect their 1.00 ETH deposit.
-            </p>
-          </div>
-          <span className="pill pill-muted mono small">
-            {v.piecesRevealed || 0}/5 Uploaded · {isUnlocked ? "Quorum Met" : "Awaiting Quorum"}
-          </span>
-        </div>
-
-        <div className="roster-grid">
-          {[1, 2, 3, 4, 5].map((id) => {
-            const s = v.staff.find((item) => item.index === id) || v.staff[id - 1];
-            const isCurrent = id === currentIndex;
-            const uploaded = Boolean(s?.pieceRevealed);
-            const seedDone = Boolean(s?.seedRevealed);
-            const isPenalised = Boolean(s?.penalised);
-
-            let cardClass = "item-protected";
-            let statusBadge = <span className="pill pill-mint small">✓ Safe (0% Slash)</span>;
-            let statusMsg = "✓ Key Uploaded — 1.00 ETH Safe";
-
-            if (isPenalised) {
-              cardClass = "item-slashed";
-              statusBadge = <span className="pill pill-red small">🚨 Slashed</span>;
-              statusMsg = "-0.50 ETH Slashed (Delinquent)";
-            } else if (uploaded) {
-              cardClass = "item-protected";
-              statusBadge = <span className="pill pill-mint small">✓ Protected</span>;
-              statusMsg = "Key Verified · 1.00 ETH Safe";
-            } else if (isRevealPhase && revealTimeLeft > 0) {
-              cardClass = "item-at-risk";
-              statusBadge = <span className="pill pill-amber small">⚠️ {fmtCountdown(revealTimeLeft)}</span>;
-              statusMsg = `⚠️ Upload within ${revealMinutesLeft}m or -0.50 ETH Slashed`;
-            } else if (isRevealPhase && revealTimeLeft === 0) {
-              cardClass = "item-slashed";
-              statusBadge = <span className="pill pill-red small">🚨 Expired</span>;
-              statusMsg = "Missed Deadline · -0.50 ETH Slashable";
-            } else if (isSeedPhase && !seedDone) {
-              cardClass = "item-at-risk";
-              statusBadge = <span className="pill pill-amber small">🎲 Seed Due</span>;
-              statusMsg = "Seed Pending · Submit Now";
-            } else if (seedDone && !v.paperSelected) {
-              cardClass = "item-protected";
-              statusBadge = <span className="pill pill-mint small">🎲 Seed ✓</span>;
-              statusMsg = "Seed Contributed · Waiting Draw";
-            } else {
-              cardClass = "item-protected";
-              statusBadge = <span className="pill pill-muted small">⏳ Escrow</span>;
-              statusMsg = "1.00 ETH Staked (Escrow Active)";
-            }
-
-            return (
-              <a
-                key={id}
-                href={`#/staff/${id}`}
-                className={`roster-item ${cardClass} ${isCurrent ? "active-item" : ""}`}
-                title={`Click to switch to Custodian #${id}`}
-              >
-                <div className="roster-item-header">
-                  <div className="roster-index">
-                    <span>{uploaded ? "🛡️" : isRevealPhase ? "⚠️" : "👤"}</span>
-                    <span>Staff #{id}</span>
-                    {isCurrent && <span className="pill pill-primary small mono" style={{ padding: "1px 6px", fontSize: "10px" }}>Viewing</span>}
-                  </div>
-                  {statusBadge}
-                </div>
-                <div className="mono small muted" style={{ fontSize: "11px" }}>
-                  {shortAddr(s?.address)}
-                </div>
-                <div className={`roster-status-line ${uploaded ? "mint-text" : isRevealPhase && !uploaded ? "amber-text" : "muted"}`}>
-                  {statusMsg}
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Holographic 3-of-5 Quorum Visualizer */}
-      <QuorumVisualizer vault={v} />
+      {/* Unified 3-of-5 Shamir Quorum Visualizer & Custodian Slashing Roster */}
+      <QuorumVisualizer
+        vault={v}
+        role="staff"
+        currentStaffIndex={currentIndex}
+        isRevealPhase={isRevealPhase}
+        isSeedPhase={isSeedPhase}
+        revealTimeLeft={revealTimeLeft}
+        seedTimeLeft={seedTimeLeft}
+        revealMinutesLeft={revealMinutesLeft}
+        revealWindowMinutes={revealWindowMinutes}
+      />
 
       {/* Key Upload & Submission Card */}
       <section

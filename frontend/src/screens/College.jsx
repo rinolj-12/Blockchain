@@ -294,8 +294,8 @@ export default function College({ vault: v, refresh }) {
         </div>
       </div>
 
-      {/* Holographic 3-of-5 Quorum Visualizer */}
-      <QuorumVisualizer vault={v} />
+      {/* Holographic 3-of-5 Quorum Visualizer (Exam Centre Read-Only Monitor) */}
+      <QuorumVisualizer vault={v} role="college" />
 
       {/* Download Action Section */}
       <section className="card">
@@ -335,7 +335,7 @@ export default function College({ vault: v, refresh }) {
 
       {/* Decrypted Exam Paper Preview (Appears when downloaded) */}
       {result && (
-        <section className="card" style={{ border: "2px solid var(--mint-border)", background: "rgba(10, 24, 22, 0.4)" }}>
+        <section className="card" style={{ border: "2px solid var(--mint-border)", background: "rgba(24, 20, 16, 0.4)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
             <div>
               <span className="pill pill-mint inline-icon" style={{ marginBottom: "6px" }}>

@@ -485,7 +485,7 @@ export default function Admin({ vault: v, refresh }) {
       </div>
 
       {/* Interactive Holographic Quorum Visualizer */}
-      <QuorumVisualizer vault={v} />
+      <QuorumVisualizer vault={v} role="admin" />
 
       {/* Question Paper Vault & IPFS Storage Section */}
       <PaperVaultSection />

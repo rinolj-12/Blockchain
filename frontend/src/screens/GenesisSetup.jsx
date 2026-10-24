@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { deployment, ipfsGateway } from "../lib/deployment.js";
+import { deployment, ipfsGateway, hasLiveDeployment, clearLiveDeployment } from "../lib/deployment.js";
 import { CANDIDATE_PAPERS } from "../lib/papersData.js";
 import { shortAddr } from "../lib/format.js";
+import { checkNodeStatus, executeLiveGenesis, resetHardhatNode } from "../lib/liveDeployer.js";
 
 // Detailed data for all 14 sequential blocks + the Paper Setter cryptographic phase
 const LEDGER_STEPS = [
@@ -48,7 +49,7 @@ const LEDGER_STEPS = [
     category: "ACCESS_CONTROL",
     badge: "Staff Onboarding",
     badgeColor: "mint",
-    summary: "Central Admin enrolls Staff Custodian #1 (0x7099...) into the authorized threshold decryption ring.",
+    summary: "Central Admin enrolls Staff Custodian #1 into the authorized threshold decryption ring.",
     telemetry: {
       "Custodian Index": "Staff #1 of 5",
       "Wallet Address": shortAddr(deployment?.accounts?.staff?.[0] || "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"),
@@ -65,7 +66,7 @@ const LEDGER_STEPS = [
     category: "ACCESS_CONTROL",
     badge: "Staff Onboarding",
     badgeColor: "mint",
-    summary: "Central Admin enrolls Staff Custodian #2 (0x3C44...) into the authorized threshold decryption ring.",
+    summary: "Central Admin enrolls Staff Custodian #2 into the authorized threshold decryption ring.",
     telemetry: {
       "Custodian Index": "Staff #2 of 5",
       "Wallet Address": shortAddr(deployment?.accounts?.staff?.[1] || "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"),
@@ -82,7 +83,7 @@ const LEDGER_STEPS = [
     category: "ACCESS_CONTROL",
     badge: "Staff Onboarding",
     badgeColor: "mint",
-    summary: "Central Admin enrolls Staff Custodian #3 (0x90F7...) into the authorized threshold decryption ring.",
+    summary: "Central Admin enrolls Staff Custodian #3 into the authorized threshold decryption ring.",
     telemetry: {
       "Custodian Index": "Staff #3 of 5",
       "Wallet Address": shortAddr(deployment?.accounts?.staff?.[2] || "0x90F79bf6EB2c4f870365E785982E1f101E93b906"),
@@ -99,7 +100,7 @@ const LEDGER_STEPS = [
     category: "ACCESS_CONTROL",
     badge: "Staff Onboarding",
     badgeColor: "mint",
-    summary: "Central Admin enrolls Staff Custodian #4 (0x15d3...) into the authorized threshold decryption ring.",
+    summary: "Central Admin enrolls Staff Custodian #4 into the authorized threshold decryption ring.",
     telemetry: {
       "Custodian Index": "Staff #4 of 5",
       "Wallet Address": shortAddr(deployment?.accounts?.staff?.[3] || "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"),
@@ -114,71 +115,71 @@ const LEDGER_STEPS = [
     title: "Block #6: Staff Custodian #5 Registration",
     method: "vault.registerStaff(Staff 5)",
     category: "ACCESS_CONTROL",
-    badge: "Staff Onboarding",
+    badge: "Ring Complete (5/5)",
     badgeColor: "mint",
-    summary: "Central Admin enrolls Staff Custodian #5 (0x9965...). All 5 custodian seats are now officially filled on Ethereum.",
+    summary: "Staff Custodian #5 is registered. The 5-member custodian threshold group is now fully onboarded.",
     telemetry: {
       "Custodian Index": "Staff #5 of 5",
       "Wallet Address": shortAddr(deployment?.accounts?.staff?.[4] || "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"),
-      "Quorum Ring": "5 of 5 Seats Filled (3 Required to Unlock)",
-      "On-Chain Status": "Registered ✓",
+      "Quorum Quorum": "3-of-5 Required",
+      "Decryption Ring": "100% Sealed (5/5)",
     },
     visualHighlight: "staff_5",
   },
   {
     block: 7,
     phase: "college_reg",
-    title: "Block #7: Exam Center Accreditation",
-    method: "vault.registerCollege(Govt College)",
+    title: "Block #7: Exam Center #1 Registration",
+    method: "vault.registerCollege(College 1)",
     category: "EXAM_CENTER",
-    badge: "Center Accredited",
+    badge: "Center Onboarding",
     badgeColor: "mint",
-    summary: "Admin authorizes Govt. College of Engineering as a legitimate examination venue eligible to receive invigilator access.",
+    summary: "Admin registers Govt. College of Engineering as an authorized exam center eligible to receive an access token.",
     telemetry: {
       "College Name": "Govt. College of Engineering",
-      "Wallet Address": shortAddr(deployment?.accounts?.colleges?.[0]?.address || "0x976EA74026E726554dB657fA54763abd0C3a0aa9"),
-      "Accreditation": "Authorized Exam Center #1",
-      "On-Chain Status": "Registered ✓",
+      "College Address": shortAddr(deployment?.accounts?.colleges?.[0]?.address || "0x976EA74026E726554dB657fA54763abd0C3a0aa9"),
+      "Assigned Account": "Account #6",
+      "Access Token": "Eligible for Soulbound NFT",
     },
     visualHighlight: "college_1",
   },
   {
     block: 8,
     phase: "college_reg",
-    title: "Block #8: Secondary College Registration",
-    method: "vault.registerCollege(City Arts College)",
+    title: "Block #8: Exam Center #2 Registration",
+    method: "vault.registerCollege(College 2)",
     category: "EXAM_CENTER",
-    badge: "Center Registered",
-    badgeColor: "muted",
-    summary: "Admin registers City Arts College without access tokens, demonstrating that unregistered/tokenless institutions are denied access.",
+    badge: "Center Onboarding",
+    badgeColor: "mint",
+    summary: "Admin registers City Arts College (Control group testing for access denial without soulbound token).",
     telemetry: {
       "College Name": "City Arts College",
-      "Wallet Address": shortAddr(deployment?.accounts?.colleges?.[1]?.address || "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"),
-      "Access Token": "None (Demonstrates Access Control)",
-      "On-Chain Status": "Registered ✓",
+      "College Address": shortAddr(deployment?.accounts?.colleges?.[1]?.address || "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955"),
+      "Assigned Account": "Account #7",
+      "Access Token": "Unfunded / No Token",
     },
     visualHighlight: "college_2",
   },
   {
     block: 8.5,
-    isSpecialPhase: true,
-    phase: "paper_setter",
-    title: "Special Stage: Paper Setter Cryptographic Pipeline",
-    method: "AES256_GCM + IPFS_Pin + Shamir_Split(k=3, n=5)",
-    category: "CRYPTOGRAPHY & IPFS",
-    badge: "Paper Setter & IPFS",
+    phase: "crypto_papers",
+    title: "Off-Chain Cryptography: Paper Setter Pipeline",
+    method: "AES-256-GCM + Shamir(3, 5)",
+    category: "CRYPTOGRAPHIC_PIPELINE",
+    badge: "Zero-Knowledge Preparation",
     badgeColor: "amber",
+    isSpecialPhase: true,
     summary:
-      "The University Paper Setter encrypts Papers A, B, and C with AES-256-GCM. Ciphertext blobs are pinned to IPFS, and the AES key is mathematically split into 5 Shamir shares (staff-1.json to staff-5.json). Plaintext is deleted.",
+      "Paper Setter encrypts sets A, B, and C with unique random 256-bit AES keys. Each key is split into 5 Shamir shares (threshold k=3). Shares are securely distributed to the 5 staff custodians, and encrypted files are uploaded to IPFS.",
     securityNote:
-      "CRITICAL SECURITY PROOF: Staff custodians ONLY hold mathematical Shamir key fragments. Staff NEVER have access to the question paper, preventing any insider leaks!",
+      "CRITICAL: The Paper Setter immediately destroys the master decryption keys and original plaintext question files. No single entity on earth possesses the exam questions.",
     telemetry: {
-      "Candidate Papers": "3 Sets (A: Algorithmic Foundations, B: Trees & Sorting, C: DP & Tries)",
-      "Encryption": "AES-256-GCM (Authenticated 256-bit Cipher)",
-      "Storage": "IPFS Decentralized Content-Addressed CIDv1",
-      "Shamir Threshold": "3-of-5 Split (Distributed to S1–S5)",
+      "Cipher Algorithm": "AES-256-GCM Authenticated",
+      "Threshold Scheme": "3-of-5 Shamir Secret Shares",
+      "Candidate Sets": "3 Independent Exam Papers (A, B, C)",
+      "IPFS Storage": "Content-Addressed (3 CIDs Pinned)",
     },
-    visualHighlight: "paper_split",
+    visualHighlight: "paper_crypto",
   },
   {
     block: 9,
@@ -188,12 +189,12 @@ const LEDGER_STEPS = [
     category: "ECONOMIC_SECURITY",
     badge: "1.0 ETH Staked",
     badgeColor: "mint",
-    summary: "Staff Custodian #1 deposits 1.00 ETH test collateral into the contract escrow. Slashing penalty enforces timely reveal.",
+    summary: "Staff Custodian #1 deposits 1.00 ETH test collateral into the contract escrow to back their commitment.",
     telemetry: {
       "Staker": "Staff Custodian #1",
       "Deposit Amount": "1.00 ETH",
       "Escrow Balance": "1.00 ETH",
-      "Slashing Rule": "Forfeited if offline or submitting false seeds",
+      "Slashing Rule": "Automated smart contract forfeiture",
     },
     visualHighlight: "stake_1",
   },
@@ -286,19 +287,70 @@ const LEDGER_STEPS = [
   },
 ];
 
+const BLOCK_TO_INDEX = {
+  0: 0,
+  1: 1,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  8.5: 9,
+  9: 10,
+  10: 11,
+  11: 12,
+  12: 13,
+  13: 14,
+  14: 15,
+};
+
 export default function GenesisSetup({ vault, refresh }) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1); // 1x or 2x
   const [inspectedPaper, setInspectedPaper] = useState(null);
-  const [autoRedirectTimer, setAutoRedirectTimer] = useState(null);
+
+  // Real-Time EVM Deployment state
+  const [deployMode, setDeployMode] = useState("realtime"); // "realtime" or "walkthrough"
+  const [nodeStatus, setNodeStatus] = useState({ checking: true, connected: false });
+  const [resetFirst, setResetFirst] = useState(true);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deployError, setDeployError] = useState(null);
+  const [currentStatus, setCurrentStatus] = useState("");
+  const [liveTelemetryMap, setLiveTelemetryMap] = useState({});
+  const [liveLogs, setLiveLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(false);
+  const [hasLive, setHasLive] = useState(hasLiveDeployment());
 
   const activeStep = LEDGER_STEPS[stepIndex];
   const isFinalStep = stepIndex === LEDGER_STEPS.length - 1;
+  const terminalRef = useRef(null);
 
-  // Auto-play interval
+  // Check node status on mount & interval
+  const checkNode = async () => {
+    setNodeStatus((prev) => ({ ...prev, checking: true }));
+    const res = await checkNodeStatus();
+    setNodeStatus({ checking: false, ...res });
+  };
+
   useEffect(() => {
-    if (!isPlaying) return;
+    checkNode();
+    const interval = setInterval(checkNode, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll log terminal
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [liveLogs]);
+
+  // Auto-play interval for Walkthrough mode only
+  useEffect(() => {
+    if (deployMode !== "walkthrough" || !isPlaying || isDeploying) return;
 
     if (stepIndex < LEDGER_STEPS.length - 1) {
       const delay = (activeStep.isSpecialPhase ? 4200 : 2500) / speed;
@@ -309,7 +361,60 @@ export default function GenesisSetup({ vault, refresh }) {
     } else {
       setIsPlaying(false);
     }
-  }, [isPlaying, stepIndex, speed, activeStep]);
+  }, [deployMode, isPlaying, isDeploying, stepIndex, speed, activeStep]);
+
+  // Launch Live In-Browser Genesis
+  const handleLaunchLiveGenesis = async () => {
+    if (isDeploying) return;
+    setIsDeploying(true);
+    setIsPlaying(false);
+    setDeployError(null);
+    setLiveLogs([]);
+    setShowLogs(true);
+    setCurrentStatus("Connecting to Ethereum node at http://127.0.0.1:8545...");
+
+    try {
+      await executeLiveGenesis({
+        resetFirst,
+        onStepStart: (blockNum, msg) => {
+          setCurrentStatus(msg);
+          const idx = BLOCK_TO_INDEX[blockNum];
+          if (idx !== undefined) setStepIndex(idx);
+        },
+        onStepComplete: (blockNum, telemetryData) => {
+          setLiveTelemetryMap((prev) => ({
+            ...prev,
+            [blockNum]: telemetryData,
+          }));
+          const idx = BLOCK_TO_INDEX[blockNum];
+          if (idx !== undefined) setStepIndex(idx);
+        },
+        onLog: (msg) => {
+          setLiveLogs((prev) => [...prev.slice(-50), `[${new Date().toLocaleTimeString()}] ${msg}`]);
+        },
+      });
+
+      setCurrentStatus("✨ Genesis deployment verified on-chain at Block #14!");
+      setHasLive(true);
+      await checkNode();
+      if (refresh) refresh();
+    } catch (err) {
+      console.error("Live Genesis execution failed:", err);
+      setDeployError(err?.message || "Deployment failed. Ensure local Hardhat node is running.");
+      setCurrentStatus("Deployment encountered an error.");
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  const handleClearLive = () => {
+    clearLiveDeployment();
+    setHasLive(false);
+    setLiveTelemetryMap({});
+    setStepIndex(0);
+    setCurrentStatus("Reverted to bundled snapshot deployment.");
+    if (refresh) refresh();
+  };
 
   // Visual state calculations
   const displayBlockNum = activeStep.block === 8.5 ? "8+" : activeStep.block;
@@ -331,95 +436,345 @@ export default function GenesisSetup({ vault, refresh }) {
   const isPapersEncrypted = activeStep.block >= 8.5;
   const isSoulboundMinted = activeStep.block >= 14;
 
+  // Real-time telemetry resolution
+  const activeTelemetry = liveTelemetryMap[activeStep.block] || activeStep.telemetry;
+  const hasLiveReceipt = !!liveTelemetryMap[activeStep.block];
+
   return (
     <div style={{ maxWidth: "1200px", margin: "0 auto", paddingBottom: "40px" }}>
-      {/* Genesis Audit Control Bar */}
+      {/* 1. TOP CONTROLLER & REAL-TIME DEPLOYMENT SUITE */}
       <div
         className="card"
         style={{
           marginBottom: "16px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "14px",
+          background: "linear-gradient(180deg, var(--surface) 0%, rgba(18, 18, 22, 0.95) 100%)",
+          border: "1px solid var(--border)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-            <span className="dot" />
-            <span className="mono small" style={{ color: "var(--accent)", fontWeight: "600", letterSpacing: "0.08em" }}>
-              GENESIS LEDGER AUDIT
+        {/* Header Row: Title, Mode Switcher, Node Status */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "14px",
+            paddingBottom: "14px",
+            borderBottom: "1px solid var(--border)",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+              <span className={`dot ${nodeStatus.connected ? "dot-mint" : ""}`} />
+              <span className="mono small" style={{ color: "var(--accent)", fontWeight: "600", letterSpacing: "0.08em" }}>
+                GENESIS ON-CHAIN CONTROL CENTER
+              </span>
+            </div>
+            <h1 className="h1" style={{ fontSize: "20px", margin: 0, fontWeight: "600" }}>
+              {deployMode === "realtime" ? "Real-Time EVM Genesis Deployer" : "Genesis Audit Walkthrough & Telemetry"}
+            </h1>
+          </div>
+
+          {/* Mode Selector & Node Status */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            {/* Mode Switcher Tabs */}
+            <div style={{ display: "flex", background: "var(--surface-2)", borderRadius: "8px", padding: "3px", border: "1px solid var(--border)" }}>
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  setDeployMode("realtime");
+                  setIsPlaying(false);
+                }}
+                style={{
+                  background: deployMode === "realtime" ? "var(--accent)" : "transparent",
+                  color: deployMode === "realtime" ? "#000" : "var(--text-muted)",
+                  fontWeight: deployMode === "realtime" ? "700" : "500",
+                  padding: "4px 12px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                ⚡ Live EVM Deploy
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={() => {
+                  setDeployMode("walkthrough");
+                  setIsPlaying(true);
+                }}
+                style={{
+                  background: deployMode === "walkthrough" ? "var(--accent)" : "transparent",
+                  color: deployMode === "walkthrough" ? "#000" : "var(--text-muted)",
+                  fontWeight: deployMode === "walkthrough" ? "700" : "500",
+                  padding: "4px 12px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                🎬 Walkthrough Replay
+              </button>
+            </div>
+
+            {/* Node Status Indicator Pill */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: nodeStatus.connected ? "rgba(10, 186, 115, 0.12)" : "rgba(235, 87, 87, 0.12)",
+                border: `1px solid ${nodeStatus.connected ? "rgba(10, 186, 115, 0.3)" : "rgba(235, 87, 87, 0.3)"}`,
+                borderRadius: "8px",
+                fontSize: "12px",
+              }}
+            >
+              <span
+                style={{
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  background: nodeStatus.connected ? "var(--mint)" : "var(--danger, #eb5757)",
+                  boxShadow: nodeStatus.connected ? "0 0 8px var(--mint)" : "none",
+                }}
+              />
+              <span className="mono" style={{ color: nodeStatus.connected ? "var(--mint)" : "var(--danger, #eb5757)", fontWeight: "600" }}>
+                {nodeStatus.checking
+                  ? "Checking Node..."
+                  : nodeStatus.connected
+                  ? `EVM Active (Block #${nodeStatus.blockNumber})`
+                  : "Node Offline"}
+              </span>
+              <button
+                onClick={checkNode}
+                className="btn btn-ghost btn-sm"
+                style={{ padding: "0 4px", minHeight: "auto", fontSize: "11px", opacity: 0.8 }}
+                title="Refresh connection"
+              >
+                ↻
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Real-Time Action Bar */}
+        {deployMode === "realtime" ? (
+          <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+              {/* Main Action Button */}
+              <button
+                className="btn btn-primary"
+                onClick={handleLaunchLiveGenesis}
+                disabled={isDeploying || !nodeStatus.connected}
+                style={{
+                  padding: "9px 20px",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: isDeploying ? "0 0 16px var(--accent)" : "0 4px 14px rgba(0,255,163,0.2)",
+                  opacity: nodeStatus.connected ? 1 : 0.6,
+                }}
+              >
+                {isDeploying ? (
+                  <>
+                    <span className="dot dot-mint" />
+                    <span>Mining Block #{displayBlockNum}...</span>
+                  </>
+                ) : hasLive ? (
+                  <>
+                    <span>🚀 Re-Deploy Genesis Live</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🚀 Launch Real-Time Genesis on EVM</span>
+                  </>
+                )}
+              </button>
+
+              {/* Reset to Block 0 Checkbox */}
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", cursor: "pointer", color: "var(--text)" }}>
+                <input
+                  type="checkbox"
+                  checked={resetFirst}
+                  onChange={(e) => setResetFirst(e.target.checked)}
+                  disabled={isDeploying}
+                  style={{ cursor: "pointer", accentColor: "var(--accent)" }}
+                />
+                <span>Reset EVM to Block #0 First (Clean Chain)</span>
+              </label>
+
+              {/* Logs Drawer Toggle */}
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowLogs(!showLogs)}
+                style={{ fontSize: "12px" }}
+              >
+                {showLogs ? "Hide Terminal Log ▲" : `View Live Terminal (${liveLogs.length}) ▼`}
+              </button>
+
+              {hasLive && (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleClearLive}
+                  disabled={isDeploying}
+                  style={{ fontSize: "11px", color: "var(--muted)" }}
+                  title="Reverts to the deployment.json generated by demo setup"
+                >
+                  Revert to Demo Snapshot
+                </button>
+              )}
+            </div>
+
+            {/* Live Block Height Display */}
+            <div
+              style={{
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                padding: "6px 14px",
+                textAlign: "right",
+                minWidth: "140px",
+              }}
+            >
+              <div className="mono small muted" style={{ fontSize: "10px", letterSpacing: "0.08em" }}>
+                ACTIVE STAGE
+              </div>
+              <div className="mono" style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent)" }}>
+                Block #{displayBlockNum} / 14
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Walkthrough Video Player Controls */
+          <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (isFinalStep) {
+                    setStepIndex(0);
+                    setIsPlaying(true);
+                  } else {
+                    setIsPlaying(!isPlaying);
+                  }
+                }}
+              >
+                {isFinalStep ? "Restart Walkthrough" : isPlaying ? "Pause Video" : "Play Walkthrough"}
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setSpeed(speed === 1 ? 2 : 1)}
+                title="Toggle playback speed"
+              >
+                {speed}x Speed
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setIsPlaying(false);
+                  setStepIndex(LEDGER_STEPS.length - 1);
+                }}
+                disabled={isFinalStep}
+              >
+                Skip to Block #14
+              </button>
+              <span className="mono small muted" style={{ marginLeft: "8px" }}>
+                Auto-advancing through 14 pre-mined blocks
+              </span>
+            </div>
+
+            <div
+              style={{
+                background: "var(--surface-2)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                padding: "6px 14px",
+                textAlign: "right",
+              }}
+            >
+              <div className="mono small muted" style={{ fontSize: "10px" }}>PLAYBACK HEIGHT</div>
+              <div className="mono" style={{ fontSize: "18px", fontWeight: "700", color: "var(--accent)" }}>
+                Block #{displayBlockNum}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Progress Bar & Status Text */}
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
+            <span className="mono muted">
+              {currentStatus || (nodeStatus.connected ? "Ready to deploy or inspect 14 on-chain blocks." : "Waiting for local Hardhat node (run `npm run node`).")}
+            </span>
+            <span className="mono" style={{ color: "var(--accent)", fontWeight: "600" }}>
+              {Math.round(((stepIndex + 1) / LEDGER_STEPS.length) * 100)}% Complete
             </span>
           </div>
-          <h1 className="h1" style={{ fontSize: "20px", margin: 0, fontWeight: "600" }}>
-            Genesis Blockchain Walkthrough & Telemetry
-          </h1>
+          <div style={{ height: "4px", background: "var(--surface-3)", borderRadius: "2px", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${((stepIndex + 1) / LEDGER_STEPS.length) * 100}%`,
+                background: isDeploying ? "linear-gradient(90deg, var(--accent), var(--mint))" : "var(--accent)",
+                transition: "width 250ms ease",
+              }}
+            />
+          </div>
         </div>
 
-        {/* Live Block Height Digits & Scrubber */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        {/* Error Alert if node is down or tx fails */}
+        {deployError && (
           <div
             style={{
-              background: "var(--surface-2)",
-              border: "1px solid var(--border)",
-              borderRadius: "6px",
-              padding: "6px 14px",
-              textAlign: "center",
-              minWidth: "120px",
+              marginTop: "12px",
+              padding: "10px 14px",
+              background: "rgba(235, 87, 87, 0.15)",
+              border: "1px solid rgba(235, 87, 87, 0.4)",
+              borderRadius: "8px",
+              fontSize: "13px",
+              color: "#ff8585",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            <div className="mono small muted" style={{ fontSize: "10px", letterSpacing: "0.08em" }}>
-              LEDGER HEIGHT
-            </div>
-            <div
-              className="mono"
-              style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                color: "var(--accent)",
-              }}
-            >
-              Block #{displayBlockNum}
-            </div>
+            <span>⚠️ {deployError}</span>
+            <button className="btn btn-ghost btn-sm" onClick={() => setDeployError(null)} style={{ padding: "0 6px" }}>
+              ✕
+            </button>
           </div>
+        )}
 
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                if (isFinalStep) {
-                  setStepIndex(0);
-                  setIsPlaying(true);
-                } else {
-                  setIsPlaying(!isPlaying);
-                }
-              }}
-            >
-              {isFinalStep ? "Restart" : isPlaying ? "Pause" : "Play"}
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => setSpeed(speed === 1 ? 2 : 1)}
-              title="Toggle playback speed"
-            >
-              {speed}x Speed
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setIsPlaying(false);
-                setStepIndex(LEDGER_STEPS.length - 1);
-              }}
-              disabled={isFinalStep}
-            >
-              Skip to Block #14
-            </button>
-            <a href="#/admin" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}>
-              Enter Admin
-            </a>
+        {/* Real-time Streaming Terminal Log Console */}
+        {showLogs && (
+          <div
+            ref={terminalRef}
+            style={{
+              marginTop: "14px",
+              background: "#080c10",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "12px",
+              maxHeight: "180px",
+              overflowY: "auto",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              color: "var(--mint)",
+              lineHeight: "1.6",
+            }}
+          >
+            <div style={{ color: "var(--muted)", marginBottom: "6px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "4px" }}>
+              [HARDHAT EVM RPC STREAM: http://127.0.0.1:8545]
+            </div>
+            {liveLogs.length === 0 ? (
+              <div style={{ color: "var(--muted)" }}>Click "Launch Real-Time Genesis on EVM" to start on-chain execution stream...</div>
+            ) : (
+              liveLogs.map((log, i) => <div key={i}>{log}</div>)
+            )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* 2. THE MAIN STAGE: ON-CHAIN TOPOLOGY */}
@@ -447,7 +802,6 @@ export default function GenesisSetup({ vault, refresh }) {
             justifyContent: "space-between",
           }}
         >
-
           {/* Central Reactor Visual (SVG) */}
           <div
             style={{
@@ -459,13 +813,11 @@ export default function GenesisSetup({ vault, refresh }) {
               margin: "20px 0",
             }}
           >
-            {/* SVG Interactive Topology Diagram */}
             <svg
               viewBox="0 0 540 380"
               style={{ width: "100%", maxHeight: "360px", overflow: "visible" }}
             >
               <defs>
-                {/* Glowing Laser Filter */}
                 <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
                   <feGaussianBlur stdDeviation="3" result="blur" />
                   <feMerge>
@@ -473,253 +825,265 @@ export default function GenesisSetup({ vault, refresh }) {
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
-                {/* Staking Laser Gradient */}
-                <linearGradient id="laserBeam" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#0B132B" stopOpacity="0.2" />
-                </linearGradient>
               </defs>
 
-              {/* Laser Staking Conduits from 5 Custodians to Center Core */}
+              {/* Energy Rays from Staff Custodians to Vault */}
               {[
-                { x: 90, y: 80, idx: 1 },
-                { x: 190, y: 40, idx: 2 },
-                { x: 350, y: 40, idx: 3 },
-                { x: 450, y: 80, idx: 4 },
-                { x: 480, y: 200, idx: 5 },
-              ].map((pos) => {
-                const isStaked = stakedStaffCount >= pos.idx;
-                const isRegistered = activeStaffCount >= pos.idx;
+                { x: 92, y: 108 },
+                { x: 172, y: 78 },
+                { x: 270, y: 64 },
+                { x: 368, y: 78 },
+                { x: 448, y: 108 },
+              ].map((pos, idx) => {
+                const isActive = activeStaffCount > idx;
+                const isStaked = stakedStaffCount > idx;
                 return (
-                  <g key={pos.idx}>
-                    {/* Connection Conduit Line */}
-                    <line
-                      x1={pos.x}
-                      y1={pos.y}
-                      x2={270}
-                      y2={220}
-                      stroke={isStaked ? "var(--mint)" : isRegistered ? "var(--border)" : "#1a2530"}
-                      strokeWidth={isStaked ? 2.5 : 1}
-                      strokeDasharray={isStaked ? "none" : "4 4"}
-                      filter={isStaked ? "url(#neonGlow)" : "none"}
-                      opacity={isRegistered ? 0.9 : 0.25}
-                    />
-
-                    {/* Animated Energy Packet on Staking */}
-                    {isStaked && (
-                      <circle cx={(pos.x + 270) / 2} cy={(pos.y + 220) / 2} r="3" fill="#60A5FA">
-                        <animate
-                          attributeName="r"
-                          values="2;4;2"
-                          dur="1.2s"
-                          repeatCount="indefinite"
-                        />
-                      </circle>
-                    )}
-                  </g>
+                  <line
+                    key={idx}
+                    x1={pos.x}
+                    y1={pos.y}
+                    x2="270"
+                    y2="205"
+                    stroke={
+                      isStaked
+                        ? "var(--mint)"
+                        : isActive
+                        ? "var(--accent)"
+                        : "var(--border)"
+                    }
+                    strokeWidth={isStaked ? "2.5" : isActive ? "1.5" : "1"}
+                    strokeDasharray={isStaked ? "none" : isActive ? "4,4" : "2,6"}
+                    opacity={isActive ? 0.9 : 0.25}
+                  />
                 );
               })}
 
-              {/* Conduit to College Node (Bottom-Left) */}
+              {/* College Access Link */}
               <line
-                x1={100}
-                y1={310}
-                x2={270}
-                y2={220}
+                x1="105"
+                y1="315"
+                x2="270"
+                y2="205"
                 stroke={isSoulboundMinted ? "#F5B94A" : "var(--border)"}
-                strokeWidth={isSoulboundMinted ? 2.5 : 1}
-                strokeDasharray={isSoulboundMinted ? "none" : "4 4"}
-                filter={isSoulboundMinted ? "url(#neonGlow)" : "none"}
+                strokeWidth={isSoulboundMinted ? "2.5" : "1"}
+                strokeDasharray={isSoulboundMinted ? "none" : "3,5"}
+                opacity={isSoulboundMinted ? 0.9 : 0.25}
               />
 
-              {/* Conduit to IPFS Storage (Bottom-Right) */}
+              {/* IPFS Data Pipeline */}
               <line
-                x1={440}
-                y1={310}
-                x2={270}
-                y2={220}
+                x1="435"
+                y1="315"
+                x2="270"
+                y2="205"
                 stroke={isPapersEncrypted ? "var(--mint)" : "var(--border)"}
-                strokeWidth={isPapersEncrypted ? 2 : 1}
-                strokeDasharray={isPapersEncrypted ? "none" : "4 4"}
+                strokeWidth={isPapersEncrypted ? "2.5" : "1"}
+                strokeDasharray={isPapersEncrypted ? "none" : "3,5"}
+                opacity={isPapersEncrypted ? 0.9 : 0.25}
               />
 
-              {/* ================= CENTRAL VAULT CORE ================= */}
-              <g transform="translate(270, 220)">
-                {/* Outer Rotating Radar Ring */}
+              {/* ================= CENTRAL REACTOR: EXAMVAULT ================= */}
+              <g transform="translate(270, 205)">
                 <circle
-                  r="78"
-                  fill="none"
-                  stroke={isVaultIgnited ? "rgba(59, 130, 246, 0.35)" : "rgba(255,255,255,0.05)"}
-                  strokeWidth="1.5"
-                  strokeDasharray="14 10"
-                >
-                  {isVaultIgnited && (
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="0"
-                      to="360"
-                      dur="14s"
-                      repeatCount="indefinite"
-                    />
-                  )}
-                </circle>
-
-                {/* Inner Concentric Teeth Ring */}
-                <circle
-                  r="62"
-                  fill="none"
-                  stroke={isVaultIgnited ? "rgba(59, 130, 246, 0.6)" : "rgba(255,255,255,0.1)"}
-                  strokeWidth="2"
-                  strokeDasharray="6 6"
-                >
-                  {isVaultIgnited && (
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="360"
-                      to="0"
-                      dur="9s"
-                      repeatCount="indefinite"
-                    />
-                  )}
-                </circle>
-
-                {/* Vault Shield Core Disc */}
-                <circle
-                  r="48"
-                  fill={isVaultIgnited ? "#0f1c36" : "#121a22"}
-                  stroke={isVaultIgnited ? "var(--mint)" : "var(--border)"}
-                  strokeWidth="2.5"
+                  r="56"
+                  fill={isVaultIgnited ? "rgba(24, 20, 16, 0.95)" : "var(--surface-2)"}
+                  stroke={isVaultIgnited ? "var(--accent)" : "var(--border)"}
+                  strokeWidth={isVaultIgnited ? 3 : 1}
                   filter={isVaultIgnited ? "url(#neonGlow)" : "none"}
                 />
-
-                {/* Core Vault Hologram Graphic */}
+                <circle
+                  r="46"
+                  fill="transparent"
+                  stroke={isVaultIgnited ? "rgba(194, 128, 62, 0.55)" : "var(--border)"}
+                  strokeWidth="1.5"
+                  strokeDasharray="5,4"
+                />
+                <text textAnchor="middle" dy="-14" fill={isVaultIgnited ? "var(--accent)" : "var(--muted)"} fontSize="19">
+                  🏛️
+                </text>
                 <text
                   textAnchor="middle"
-                  dy="-8"
-                  fill={isVaultIgnited ? "var(--mint)" : "var(--muted)"}
+                  dy="4"
+                  fill={isVaultIgnited ? "var(--text)" : "var(--muted)"}
                   fontFamily="var(--font-mono)"
-                  fontSize="12"
-                  fontWeight="700"
+                  fontSize="11"
+                  fontWeight="800"
+                  letterSpacing="0.05em"
                 >
                   EXAMVAULT
                 </text>
+                <rect
+                  x="-36"
+                  y="10"
+                  width="72"
+                  height="16"
+                  rx="8"
+                  fill={isVaultIgnited ? "rgba(32, 22, 14, 0.92)" : "rgba(24, 24, 28, 0.85)"}
+                  stroke={isVaultIgnited ? "var(--mint-border)" : "var(--border)"}
+                  strokeWidth="1"
+                />
                 <text
                   textAnchor="middle"
-                  dy="8"
-                  fill={isVaultIgnited ? "#e8eef3" : "var(--muted)"}
+                  dy="21.5"
+                  fill={isVaultIgnited ? "var(--mint)" : "var(--muted)"}
                   fontFamily="var(--font-mono)"
-                  fontSize="11"
-                  fontWeight="600"
+                  fontSize="8"
+                  fontWeight="700"
                 >
-                  {stakedStaffCount > 0 ? `${stakedStaffCount}.0 ETH` : isVaultIgnited ? "ACTIVE" : "OFFLINE"}
-                </text>
-                <text
-                  textAnchor="middle"
-                  dy="22"
-                  fill="var(--mint)"
-                  fontFamily="var(--font-mono)"
-                  fontSize="9"
-                >
-                  {isSoulboundMinted ? "SEALED ✓" : isVaultIgnited ? "DEPLOYED" : "AWAITING"}
+                  {isVaultIgnited ? (stakedStaffCount === 5 ? "5.0 ETH Escrow" : "Active Contract") : "Not Deployed"}
                 </text>
               </g>
 
-              {/* ================= 5 CUSTODIAN ORBS ================= */}
+              {/* ================= 5 STAFF CUSTODIAN NODES ================= */}
               {[
-                { x: 90, y: 80, label: "S1", name: "Custodian #1", idx: 1 },
-                { x: 190, y: 40, label: "S2", name: "Custodian #2", idx: 2 },
-                { x: 350, y: 40, label: "S3", name: "Custodian #3", idx: 3 },
-                { x: 450, y: 80, label: "S4", name: "Custodian #4", idx: 4 },
-                { x: 480, y: 200, label: "S5", name: "Custodian #5", idx: 5 },
-              ].map((pos) => {
-                const isRegistered = activeStaffCount >= pos.idx;
-                const isStaked = stakedStaffCount >= pos.idx;
+                { x: 92, y: 108, label: "Staff 1" },
+                { x: 172, y: 78, label: "Staff 2" },
+                { x: 270, y: 64, label: "Staff 3" },
+                { x: 368, y: 78, label: "Staff 4" },
+                { x: 448, y: 108, label: "Staff 5" },
+              ].map((pos, idx) => {
+                const isRegistered = activeStaffCount > idx;
+                const isStaked = stakedStaffCount > idx;
                 return (
-                  <g key={pos.idx} transform={`translate(${pos.x}, ${pos.y})`}>
-                    {/* Outer Ring */}
+                  <g key={idx} transform={`translate(${pos.x}, ${pos.y})`}>
+                    {/* Floating Info Chip (Above Node) */}
+                    <g transform="translate(0, -36)">
+                      <rect
+                        x="-33"
+                        y="-14"
+                        width="66"
+                        height="26"
+                        rx="6"
+                        fill="rgba(18, 18, 22, 0.95)"
+                        stroke={isStaked ? "rgba(194, 128, 62, 0.45)" : "rgba(255, 255, 255, 0.1)"}
+                        strokeWidth="1"
+                      />
+                      <text
+                        textAnchor="middle"
+                        y="-1"
+                        fill={isRegistered ? "var(--text)" : "var(--muted)"}
+                        fontFamily="var(--font-mono)"
+                        fontSize="10"
+                        fontWeight="700"
+                      >
+                        {pos.label}
+                      </text>
+                      <text
+                        textAnchor="middle"
+                        y="8.5"
+                        fill={isStaked ? "var(--mint)" : isRegistered ? "var(--amber)" : "var(--muted)"}
+                        fontFamily="var(--font-mono)"
+                        fontSize="8.5"
+                        fontWeight="600"
+                      >
+                        {isStaked ? "1.0 ETH ✓" : isRegistered ? "Ready" : "Empty"}
+                      </text>
+                    </g>
+
+                    {/* Node Orb */}
                     <circle
                       r="22"
-                      fill={isStaked ? "#10233d" : isRegistered ? "#131f33" : "#0d1318"}
-                      stroke={isStaked ? "var(--mint)" : isRegistered ? "var(--mint-border)" : "var(--border)"}
-                      strokeWidth={isStaked ? 2 : 1}
+                      fill={isStaked ? "#22170f" : isRegistered ? "rgba(194, 128, 62, 0.15)" : "var(--surface-2)"}
+                      stroke={isStaked ? "var(--mint)" : isRegistered ? "var(--accent)" : "var(--border)"}
+                      strokeWidth={isStaked ? 2.5 : isRegistered ? 1.5 : 1}
                       filter={isStaked ? "url(#neonGlow)" : "none"}
                     />
-                    <text
-                      textAnchor="middle"
-                      dy="4"
-                      fill={isRegistered ? "var(--mint)" : "var(--muted)"}
-                      fontFamily="var(--font-mono)"
-                      fontSize="11"
-                      fontWeight="700"
-                    >
-                      {pos.label}
-                    </text>
-                    <text
-                      textAnchor="middle"
-                      dy="32"
-                      fill="var(--muted)"
-                      fontFamily="var(--font-mono)"
-                      fontSize="9"
-                    >
-                      {isStaked ? "1.0 ETH ✓" : isRegistered ? "Ready" : "Empty"}
+                    <text textAnchor="middle" dy="5" fill={isRegistered ? "var(--text)" : "var(--muted)"} fontSize="13">
+                      {isStaked ? "🔒" : isRegistered ? "🔑" : "⚪"}
                     </text>
                   </g>
                 );
               })}
 
               {/* ================= COLLEGE ACCESS NODE ================= */}
-              <g transform="translate(100, 310)">
+              <g transform="translate(105, 315)">
                 <circle
                   r="28"
-                  fill={isSoulboundMinted ? "#2a2110" : "#121a22"}
+                  fill={isSoulboundMinted ? "#241c0e" : "#121a22"}
                   stroke={isSoulboundMinted ? "#F5B94A" : "var(--border)"}
                   strokeWidth={isSoulboundMinted ? 2.5 : 1}
                   filter={isSoulboundMinted ? "url(#neonGlow)" : "none"}
                 />
-                <text textAnchor="middle" dy="-4" fill={isSoulboundMinted ? "#F5B94A" : "var(--muted)"} fontSize="14">
+                <text textAnchor="middle" dy="-5" fill={isSoulboundMinted ? "#F5B94A" : "var(--muted)"} fontSize="14">
                   🏫
                 </text>
                 <text
                   textAnchor="middle"
-                  dy="10"
+                  dy="11"
                   fill={isSoulboundMinted ? "#F5B94A" : "var(--muted)"}
                   fontFamily="var(--font-mono)"
                   fontSize="9"
-                  fontWeight="700"
+                  fontWeight="800"
                 >
                   {isSoulboundMinted ? "TOKEN #1" : "COLLEGE"}
                 </text>
-                <text textAnchor="middle" dy="38" fill="var(--muted)" fontSize="9" fontFamily="var(--font-mono)">
-                  Govt. College
-                </text>
+                <g transform="translate(0, 42)">
+                  <rect
+                    x="-44"
+                    y="-10"
+                    width="88"
+                    height="20"
+                    rx="6"
+                    fill="rgba(18, 18, 22, 0.95)"
+                    stroke={isSoulboundMinted ? "rgba(245, 185, 74, 0.4)" : "rgba(255, 255, 255, 0.1)"}
+                    strokeWidth="1"
+                  />
+                  <text
+                    textAnchor="middle"
+                    y="3.5"
+                    fill={isSoulboundMinted ? "var(--text)" : "var(--muted)"}
+                    fontSize="9.5"
+                    fontFamily="var(--font-mono)"
+                    fontWeight="600"
+                  >
+                    Govt. College
+                  </text>
+                </g>
               </g>
 
               {/* ================= IPFS STORAGE CONSTELLATION ================= */}
-              <g transform="translate(440, 310)">
+              <g transform="translate(435, 315)">
                 <circle
                   r="28"
-                  fill={isPapersEncrypted ? "#10233d" : "#0f1624"}
+                  fill={isPapersEncrypted ? "#0e1f33" : "#0f1624"}
                   stroke={isPapersEncrypted ? "var(--mint)" : "var(--border)"}
                   strokeWidth={isPapersEncrypted ? 2 : 1}
                 />
-                <text textAnchor="middle" dy="-4" fill={isPapersEncrypted ? "var(--mint)" : "var(--muted)"} fontSize="14">
+                <text textAnchor="middle" dy="-5" fill={isPapersEncrypted ? "var(--mint)" : "var(--muted)"} fontSize="14">
                   🌐
                 </text>
                 <text
                   textAnchor="middle"
-                  dy="10"
+                  dy="11"
                   fill={isPapersEncrypted ? "var(--mint)" : "var(--muted)"}
                   fontFamily="var(--font-mono)"
                   fontSize="9"
-                  fontWeight="700"
+                  fontWeight="800"
                 >
                   IPFS CID
                 </text>
-                <text textAnchor="middle" dy="38" fill="var(--muted)" fontSize="9" fontFamily="var(--font-mono)">
-                  Papers A, B, C
-                </text>
+                <g transform="translate(0, 42)">
+                  <rect
+                    x="-46"
+                    y="-10"
+                    width="92"
+                    height="20"
+                    rx="6"
+                    fill="rgba(18, 18, 22, 0.95)"
+                    stroke={isPapersEncrypted ? "rgba(194, 128, 62, 0.4)" : "rgba(255, 255, 255, 0.1)"}
+                    strokeWidth="1"
+                  />
+                  <text
+                    textAnchor="middle"
+                    y="3.5"
+                    fill={isPapersEncrypted ? "var(--text)" : "var(--muted)"}
+                    fontSize="9.5"
+                    fontFamily="var(--font-mono)"
+                    fontWeight="600"
+                  >
+                    Papers A, B, C
+                  </text>
+                </g>
               </g>
             </svg>
           </div>
@@ -727,7 +1091,7 @@ export default function GenesisSetup({ vault, refresh }) {
           {/* Interactive Legend / Status Callout */}
           <div
             style={{
-              background: "rgba(10, 18, 24, 0.85)",
+              background: "rgba(18, 18, 22, 0.85)",
               border: "1px solid var(--border)",
               borderRadius: "12px",
               padding: "10px 14px",
@@ -760,7 +1124,7 @@ export default function GenesisSetup({ vault, refresh }) {
           </div>
         </div>
 
-        {/* Right Column: On-Chain Telemetry */}
+        {/* RIGHT COLUMN: ON-CHAIN TELEMETRY INSPECTOR */}
         <div
           className="card"
           style={{
@@ -770,14 +1134,21 @@ export default function GenesisSetup({ vault, refresh }) {
           }}
         >
           <div>
-            {/* Step Category & Badge */}
+            {/* Step Category & Live Badge */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
               <span className="eyebrow" style={{ color: "var(--accent)" }}>
                 ON-CHAIN TELEMETRY · {activeStep.category}
               </span>
-              <span className={`pill pill-${activeStep.badgeColor} mono small`}>
-                {activeStep.badge}
-              </span>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {hasLiveReceipt && (
+                  <span className="pill pill-mint mono small" style={{ fontWeight: "700" }}>
+                    Live EVM Receipt ✓
+                  </span>
+                )}
+                <span className={`pill pill-${activeStep.badgeColor} mono small`}>
+                  {activeStep.badge}
+                </span>
+              </div>
             </div>
 
             {/* Title & Solidity Method */}
@@ -828,7 +1199,7 @@ export default function GenesisSetup({ vault, refresh }) {
 
             {/* Telemetry Key-Value Grid */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px" }}>
-              {Object.entries(activeStep.telemetry).map(([key, val]) => (
+              {Object.entries(activeTelemetry).map(([key, val]) => (
                 <div
                   key={key}
                   style={{
@@ -858,11 +1229,15 @@ export default function GenesisSetup({ vault, refresh }) {
                 {CANDIDATE_PAPERS.map((p) => (
                   <button
                     key={p.id}
-                    className={`btn ${inspectedPaper?.id === p.id ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    style={{ flex: 1, fontSize: "11px" }}
+                    className="btn btn-ghost btn-sm"
                     onClick={() => setInspectedPaper(inspectedPaper?.id === p.id ? null : p)}
+                    style={{
+                      borderColor: inspectedPaper?.id === p.id ? "var(--mint)" : "var(--border)",
+                      color: inspectedPaper?.id === p.id ? "var(--mint)" : "var(--text)",
+                      fontSize: "11px",
+                    }}
                   >
-                    Set {p.id} {inspectedPaper?.id === p.id ? "▲" : "▼"}
+                    Set {p.id} Preview
                   </button>
                 ))}
               </div>
@@ -870,13 +1245,13 @@ export default function GenesisSetup({ vault, refresh }) {
               {inspectedPaper && (
                 <div
                   style={{
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--mint-border)",
-                    borderRadius: "10px",
-                    padding: "12px",
                     marginTop: "10px",
-                    fontSize: "12px",
-                    animation: "fadeIn 0.25s ease",
+                    padding: "10px",
+                    background: "var(--surface-3)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    lineHeight: "1.5",
                   }}
                 >
                   <div style={{ fontWeight: "700", color: "var(--mint)", marginBottom: "4px" }}>

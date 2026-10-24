@@ -26,26 +26,50 @@ function resolveRpcUrl(rawUrl) {
   return rawUrl;
 }
 
-const activeRpcUrl = deployment ? resolveRpcUrl(deployment.rpcUrl) : null;
+let activeRpcUrl = deployment ? resolveRpcUrl(deployment.rpcUrl) : null;
 
 /** Read-only provider straight to the RPC node, so the portal works with no wallet. */
-export const readProvider = deployment
+export let readProvider = deployment
   ? new JsonRpcProvider(activeRpcUrl, Network.from(deployment.chainId), { staticNetwork: true, cacheTimeout: -1 })
   : null;
 
-const vaultAbi = deployment?.abi?.ExamVault ?? [];
-const tokenAbi = deployment?.abi?.CollegeAccessToken ?? [];
+let vaultAbi = deployment?.abi?.ExamVault ?? [];
+let tokenAbi = deployment?.abi?.CollegeAccessToken ?? [];
 
-export const vaultIface = new Interface(vaultAbi);
-const tokenIface = new Interface(tokenAbi);
+export let vaultIface = new Interface(vaultAbi);
+export let tokenIface = new Interface(tokenAbi);
 
-export const vaultRead = deployment ? new Contract(deployment.vault, vaultAbi, readProvider) : null;
-const tokenRead = deployment ? new Contract(deployment.accessToken, tokenAbi, readProvider) : null;
+export let vaultRead = deployment ? new Contract(deployment.vault, vaultAbi, readProvider) : null;
+export let tokenRead = deployment ? new Contract(deployment.accessToken, tokenAbi, readProvider) : null;
 
 /** ExamVault connected to a signer, for sending transactions. */
 export function vaultWrite(signer) {
-  return new Contract(deployment.vault, vaultAbi, signer);
+  const currentAbi = deployment?.abi?.ExamVault ?? vaultAbi;
+  return new Contract(deployment.vault, currentAbi, signer);
 }
+
+/** Dynamically switches the active contracts and RPC when live deployment changes */
+export function rebindContracts(newDep) {
+  if (!newDep) return;
+  activeRpcUrl = resolveRpcUrl(newDep.rpcUrl);
+  readProvider = new JsonRpcProvider(activeRpcUrl, Network.from(newDep.chainId), { staticNetwork: true, cacheTimeout: -1 });
+  vaultAbi = newDep?.abi?.ExamVault ?? vaultAbi;
+  tokenAbi = newDep?.abi?.CollegeAccessToken ?? tokenAbi;
+  vaultIface = new Interface(vaultAbi);
+  tokenIface = new Interface(tokenAbi);
+  vaultRead = new Contract(newDep.vault, vaultAbi, readProvider);
+  tokenRead = new Contract(newDep.accessToken, tokenAbi, readProvider);
+  immutables = null;
+  startTime = null;
+  broadcastStateChange({ title: "Vault Reconnected", message: `Active vault at ${newDep.vault}` });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("examvault:deployment-changed", (e) => {
+    rebindContracts(e.detail);
+  });
+}
+
 
 // ------------------------------------------------------------------ state snapshot
 
@@ -57,6 +81,17 @@ let startTime = null; // timestamp of the deploy block, for the dial's progress 
 
 async function loadImmutables() {
   if (!immutables) {
+    if (!readProvider || !deployment?.vault) {
+      const err = new Error("No deployment configuration found.");
+      err.code = "NOT_DEPLOYED";
+      throw err;
+    }
+    const code = await readProvider.getCode(deployment.vault);
+    if (!code || code === "0x" || code === "0x0") {
+      const err = new Error(`ExamVault contract is not deployed at ${deployment.vault} on this node.`);
+      err.code = "NOT_DEPLOYED";
+      throw err;
+    }
     const [admin, minStake, seedWindow, revealWindow] = await Promise.all([
       vaultRead.admin(),
       vaultRead.minStake(),
@@ -382,7 +417,9 @@ export function friendlyError(err) {
       }
     }
   }
-  if (name) return FRIENDLY[name] ?? `The contract refused: ${name}.`;
+  if (err.code === "NOT_DEPLOYED" || /could not decode result data|BAD_DATA/i.test(err.message ?? "")) {
+    return "The smart contract is not yet deployed on this local blockchain node. Visit Genesis Setup to initialize it.";
+  }
   if (err.code === "NETWORK_ERROR" || /failed to fetch|ECONNREFUSED/i.test(err.message ?? "")) {
     return "Cannot reach the blockchain node. Is `npm run node` running?";
   }
