@@ -24,7 +24,10 @@ export default function Header({ route, vault }) {
   // Determine system-wide phase for connected live status pill
   let phaseLabel = "AWAITING SCHEDULE";
   let phaseTone = "pill-muted";
-  if (vault?.examTime > 0) {
+  if (vault?.postponed) {
+    phaseLabel = "EXAM POSTPONED";
+    phaseTone = "pill-red";
+  } else if (vault?.examTime > 0) {
     if (timeLeft > 0) {
       phaseLabel = `PHASE 1: COUNTDOWN (${fmtCountdown(timeLeft)})`;
       phaseTone = "pill-amber";
@@ -32,7 +35,10 @@ export default function Header({ route, vault }) {
       phaseLabel = `PHASE 3: UNLOCKED (3/3 KEYS)`;
       phaseTone = "pill-mint";
     } else if (paperSelected) {
-      phaseLabel = `PHASE 2: PAPER ${PAPER_NAMES[selectedPaper]} (${piecesRevealed}/3 KEYS)`;
+      phaseLabel = `PHASE 3: PAPER ${PAPER_NAMES[selectedPaper]} (${piecesRevealed}/3 KEYS)`;
+      phaseTone = "pill-mint";
+    } else if (seedsRevealed >= 3) {
+      phaseLabel = `PHASE 2: CONSENSUS READY (${seedsRevealed}/3 SEEDS)`;
       phaseTone = "pill-mint";
     } else {
       phaseLabel = `PHASE 2: SEED ENTROPY (${seedsRevealed}/3 SEEDS)`;
@@ -43,7 +49,10 @@ export default function Header({ route, vault }) {
   // Determine which portal is the active stage in the protocol lifecycle
   let activeStageRoute = "admin";
   let activeStageBadge = "SCHEDULE EXAM";
-  if (!vault || vault.examTime === 0) {
+  if (vault?.postponed) {
+    activeStageRoute = "admin";
+    activeStageBadge = "POSTPONED";
+  } else if (!vault || vault.examTime === 0) {
     activeStageRoute = "admin";
     activeStageBadge = "SCHEDULE";
   } else if (timeLeft > 0) {
@@ -51,7 +60,7 @@ export default function Header({ route, vault }) {
     activeStageBadge = "COUNTDOWN";
   } else if (!isUnlocked) {
     activeStageRoute = "staff";
-    activeStageBadge = !paperSelected ? "SEEDS NEEDED" : "KEYS NEEDED";
+    activeStageBadge = !paperSelected ? (seedsRevealed >= 3 ? "DRAW PAPER" : "SEEDS NEEDED") : "KEYS NEEDED";
   } else {
     activeStageRoute = "college";
     activeStageBadge = "DECRYPT READY";

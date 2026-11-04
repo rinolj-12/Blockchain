@@ -30,6 +30,7 @@ export function QuorumVisualizer({
   onSelectStaff,
 }) {
   const [hoveredStaff, setHoveredStaff] = useState(null);
+  const [selectedFingerprintNode, setSelectedFingerprintNode] = useState(null);
   const now = useChainNow();
 
   const v = vault || {};
@@ -82,6 +83,11 @@ export function QuorumVisualizer({
       statusBadge = <span className="pill pill-mint small">✓ Protected</span>;
       statusMsg = "Key Verified · 1.00 ETH Safe";
       orbIcon = "✓";
+    } else if (isRevealPhase && !seedRevealed) {
+      cardClass = "item-slashed";
+      statusBadge = <span className="pill pill-red small">🚨 Missed Seed</span>;
+      statusMsg = "Missed Seed · -0.50 ETH";
+      orbIcon = "🚨";
     } else if (isRevealPhase && revealTimeLeft > 0) {
       cardClass = "item-at-risk";
       statusBadge = <span className="pill pill-amber small">⚠️ {fmtCountdown(revealTimeLeft)}</span>;
@@ -93,10 +99,17 @@ export function QuorumVisualizer({
       statusMsg = "Missed Deadline · -0.50 ETH";
       orbIcon = "🚨";
     } else if (isSeedPhase && !seedRevealed) {
-      cardClass = "item-at-risk";
-      statusBadge = <span className="pill pill-amber small">🎲 Seed Due</span>;
-      statusMsg = "Seed Pending · Submit Now";
-      orbIcon = "🎲";
+      if (seedTimeLeft === 0) {
+        cardClass = "item-slashed";
+        statusBadge = <span className="pill pill-red small">🚨 Expired</span>;
+        statusMsg = "Missed Seed · -0.50 ETH";
+        orbIcon = "🚨";
+      } else {
+        cardClass = "item-at-risk";
+        statusBadge = <span className="pill pill-amber small">🎲 Seed Due</span>;
+        statusMsg = `Seed Pending · ${fmtCountdown(seedTimeLeft)}`;
+        orbIcon = "🎲";
+      }
     } else if (seedRevealed && !paperSelected) {
       cardClass = "item-protected";
       statusBadge = <span className="pill pill-mint small">🎲 Seed ✓</span>;
@@ -332,9 +345,81 @@ export function QuorumVisualizer({
                       Open ↗
                     </a>
                   )}
+
+                  {/* Fingerprint Inspection Button */}
+                  {node.commits?.length === 3 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{
+                        fontSize: "10px",
+                        padding: "2px 4px",
+                        width: "100%",
+                        justifyContent: "center",
+                        marginTop: "2px",
+                        borderColor: selectedFingerprintNode === node.index ? "var(--mint)" : "var(--border)",
+                        color: selectedFingerprintNode === node.index ? "var(--mint)" : "var(--muted)",
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedFingerprintNode(selectedFingerprintNode === node.index ? null : node.index);
+                      }}
+                      title="Inspect On-Chain Commitment Fingerprints"
+                    >
+                      🔒 Fingerprints {selectedFingerprintNode === node.index ? "▲" : "▼"}
+                    </button>
+                  )}
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Expandable Fingerprints Inspector Panel */}
+        {selectedFingerprintNode && (
+          <div style={{ background: "rgba(10, 10, 14, 0.95)", border: "1px solid var(--mint-border)", borderRadius: "12px", padding: "14px 16px", marginTop: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "16px" }}>🔒</span>
+                <strong style={{ fontSize: "13px", color: "var(--text)" }}>
+                  Custodian #{selectedFingerprintNode} Cryptographic Commitments (ExamVault Storage)
+                </strong>
+                <span className="pill pill-mint small mono" style={{ fontSize: "10px", padding: "2px 8px" }}>
+                  Sealed On-Chain
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: "11px", padding: "2px 8px" }}
+                onClick={() => setSelectedFingerprintNode(null)}
+              >
+                ✕ Close
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px" }}>
+              {["A", "B", "C"].map((pLetter, pIdx) => {
+                const staffObj = nodes.find((s) => s.index === selectedFingerprintNode);
+                const hash = staffObj?.commits?.[pIdx] || "";
+                const isCommitted = hash && !/^0x0+$/.test(hash);
+                return (
+                  <div key={pLetter} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", fontWeight: "700", color: "var(--muted)", marginBottom: "4px" }}>
+                      <span>PAPER {pLetter} COMMITMENT</span>
+                      <span className={isCommitted ? "mint-text" : "amber-text"}>
+                        {isCommitted ? "SEALED ✓" : "PENDING"}
+                      </span>
+                    </div>
+                    <div className="mono small" style={{ fontSize: "11px", color: isCommitted ? "var(--mint)" : "var(--muted)", wordBreak: "break-all" }}>
+                      {isCommitted ? hash : "0x0000000000000000000000000000000000000000000000000000000000000000"}
+                    </div>
+                    <div className="muted mono" style={{ fontSize: "9px", marginTop: "4px" }}>
+                      keccak256(vault, staff, {pIdx}, piece)
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

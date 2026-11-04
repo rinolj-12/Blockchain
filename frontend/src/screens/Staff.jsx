@@ -5,14 +5,19 @@ import { TransactionModal } from "../components/TransactionModal.jsx";
 import { QuorumVisualizer } from "../components/QuorumVisualizer.jsx";
 import {
   autoSubmitRemainingQuorum,
+  commitStaffFingerprints,
+  fastForwardChain,
+  fastForwardToTime,
   loadStaffKey,
   readProvider,
+  resolvePaperSelection,
   saveStaffKey,
   submitStaffKeySequence,
   useChainNow,
   vaultRead,
 } from "../lib/chain.js";
-import { fromHex } from "../lib/crypto.js";
+import { fromHex, pieceCommitment, seedCommitment } from "../lib/crypto.js";
+import { deployment } from "../lib/deployment.js";
 import { fmtCountdown, fmtLocalTime, PAPER_NAMES, shortAddr } from "../lib/format.js";
 
 function parseKeyFile(text) {
@@ -40,7 +45,8 @@ function parseKeyFile(text) {
 export default function Staff({ vault: v, refresh, staffId = 1 }) {
   const now = useChainNow();
   const currentIndex = Math.min(5, Math.max(1, Number(staffId) || 1));
-  const staffMember = v.staff.find((s) => s.index === currentIndex) || v.staff[currentIndex - 1];
+  const staffMember = v.staff?.find((s) => s.index === currentIndex) || v.staff?.[currentIndex - 1];
+  const staffAddr = staffMember?.address || deployment?.accounts?.staff?.[currentIndex - 1];
 
   const [keyFile, setKeyFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -91,7 +97,40 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
 
   const activeWindowDuration = v.paperSelected ? revealWindowDuration : seedWindowDuration;
   const activeWindowLeft = v.paperSelected ? revealTimeLeft : seedTimeLeft;
+  const hasMissedDuty = v.examTime > 0 && timeLeft === 0 && (
+    (!v.paperSelected && !isSeedRevealed && seedTimeLeft === 0) ||
+    (v.paperSelected && !isPieceRevealed && revealTimeLeft === 0)
+  );
   const isWindowExpired = v.examTime > 0 && timeLeft === 0 && activeWindowLeft === 0;
+
+  // Commit Phase State
+  const isCommitPhase = v.examTime > 0 && timeLeft > 0;
+  const arePiecesCommitted = !!staffMember?.piecesCommitted;
+  const isSeedCommitted = !!staffMember?.seedCommitted;
+  const hasCommittedAll = arePiecesCommitted && isSeedCommitted;
+
+  // Calculate computed Keccak-256 fingerprints from loaded keyFile
+  const computedFingerprints = {
+    pieces: ["A", "B", "C"].map((_, pIdx) => {
+      const pieceHex = keyFile?.pieces?.[pIdx];
+      if (!pieceHex || !staffAddr || !deployment?.vault) return null;
+      try {
+        return pieceCommitment(deployment.vault, staffAddr, pIdx, pieceHex);
+      } catch {
+        return null;
+      }
+    }),
+    seed:
+      keyFile?.seed !== undefined && staffAddr && deployment?.vault
+        ? (() => {
+            try {
+              return seedCommitment(deployment.vault, staffAddr, BigInt(keyFile.seed));
+            } catch {
+              return null;
+            }
+          })()
+        : null,
+  };
 
   // File upload handler
   const handleFileUpload = async (e) => {
@@ -198,12 +237,12 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
       await new Promise((r) => setTimeout(r, 400));
       setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
 
-      const staffSigner = await readProvider.getSigner(staffMember.address);
+      const staffSigner = await readProvider.getSigner(staffAddr);
 
       const res = await submitStaffKeySequence(
         vaultRead,
         staffSigner,
-        staffMember.address,
+        staffAddr,
         keyFile,
         (msg) => {
           if (msg.includes("Advancing")) {
@@ -246,6 +285,38 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
     }
   };
 
+  const handleDrawPaper = async () => {
+    setTxModal({
+      isOpen: true,
+      title: "Drawing Exam Paper On-Chain",
+      subtitle: "Resolving pseudo-random seed consensus on Ethereum",
+      steps: [
+        { label: "Verify Seed Quorum", detail: "At least 3 entropy seeds recorded" },
+        { label: "Execute selectPaper()", detail: "Combining seed hashes to draw Paper A, B, or C" },
+      ],
+      currentStepIndex: 1,
+      isComplete: false,
+      error: null,
+      txHash: null,
+    });
+    setSubmitting(true);
+    setError(null);
+    try {
+      const staffSigner = await readProvider.getSigner(staffAddr);
+      await resolvePaperSelection(vaultRead, staffSigner);
+      await refresh?.();
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 2, isComplete: true }));
+      setSuccess("Paper drawn successfully! Quorum reveal phase is now active.");
+    } catch (err) {
+      console.error(err);
+      const msg = err.shortMessage || err.message || "Failed to draw paper.";
+      setError(msg);
+      setTxModal((prev) => ({ ...prev, error: msg }));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleAutoSubmitQuorum = async () => {
     setTxModal({
       isOpen: true,
@@ -281,6 +352,101 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
       setTxModal((prev) => ({ ...prev, error: msg }));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCommitFingerprints = async () => {
+    if (!keyFile) {
+      setError(`Please select or quick-load key file for Staff #${currentIndex} first.`);
+      return;
+    }
+
+    const steps = [
+      { label: "Compute Cryptographic Fingerprints", detail: "Generating Keccak-256 hashes for Papers A, B, C & Seed" },
+      { label: "Connect Custodian Wallet", detail: `Signing from Staff #${currentIndex} (${shortAddr(staffAddr)})` },
+      { label: "Broadcast commitPieces()", detail: "Permanently locking 3 piece fingerprints on Ethereum" },
+      { label: "Broadcast commitSeed()", detail: "Permanently locking entropy seed fingerprint on Ethereum" },
+    ];
+
+    setTxModal({
+      isOpen: true,
+      title: `Registering Custodian #${currentIndex} Fingerprints`,
+      subtitle: "Sealing Keccak-256 cryptographic commitments into ExamVault contract",
+      steps,
+      currentStepIndex: 0,
+      isComplete: false,
+      error: null,
+      txHash: null,
+    });
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await new Promise((r) => setTimeout(r, 350));
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
+
+      const staffSigner = await readProvider.getSigner(staffAddr);
+
+      await commitStaffFingerprints(
+        staffSigner,
+        staffAddr,
+        keyFile,
+        (msg) => {
+          if (msg.includes("commitPieces")) {
+            setTxModal((prev) => ({ ...prev, currentStepIndex: 2 }));
+          } else if (msg.includes("commitSeed")) {
+            setTxModal((prev) => ({ ...prev, currentStepIndex: 3 }));
+          }
+        }
+      );
+
+      await refresh?.();
+      setTxModal((prev) => ({
+        ...prev,
+        currentStepIndex: 4,
+        isComplete: true,
+      }));
+      setSuccess(`✓ Custodian #${currentIndex} fingerprints successfully registered and sealed on Ethereum!`);
+    } catch (err) {
+      console.error(err);
+      const errMsg = err.shortMessage || err.message || "Failed to commit fingerprints.";
+      setError(errMsg);
+      setTxModal((prev) => ({
+        ...prev,
+        error: errMsg,
+      }));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleFastForwardDeadline = async () => {
+    if (!v.examTime) return;
+    setTxModal({
+      isOpen: true,
+      title: "Fast-Forwarding Blockchain Time",
+      subtitle: `Simulating time-warp past exam deadline on Hardhat`,
+      steps: [
+        { label: "Increasing EVM Timestamp", detail: "Advancing block clock past deadline" },
+        { label: "Mining Confirmation Block", detail: "Mining new block with updated timestamp" },
+      ],
+      currentStepIndex: 0,
+      isComplete: false,
+      error: null,
+    });
+
+    try {
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
+      await fastForwardToTime(v.examTime + 2);
+      await refresh?.();
+      setTxModal((prev) => ({ ...prev, isComplete: true }));
+      setSuccess("Blockchain time successfully advanced past the exam deadline!");
+    } catch (err) {
+      setTxModal((prev) => ({
+        ...prev,
+        error: err.shortMessage || err.message || "Could not fast forward blockchain clock.",
+      }));
     }
   };
 
@@ -490,6 +656,47 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
             </div>
           </div>
         </div>
+      ) : isSeedPhase && !isSeedRevealed && seedTimeLeft === 0 ? (
+        /* EXPIRED SLASHING NOTICE: Custodian Failed To Submit Seed */
+        <div className="slashing-alert-banner banner-expired">
+          <div className="banner-header">
+            <div className="banner-title-area">
+              <div className="banner-icon">🚨</div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <h2 className="banner-title" style={{ color: "var(--red)" }}>
+                    SEED WINDOW EXPIRED — 50% STAKE (0.50 ETH) SUBJECT TO SLASHING
+                  </h2>
+                  <span className="pill pill-red small">🚨 Delinquent Custodian</span>
+                </div>
+                <p className="banner-desc">
+                  The {Math.round(seedWindowDuration / 60)}-minute seed window has elapsed. Custodian #{currentIndex} did not submit their entropy seed. Under smart contract rules (<span className="mono">PENALTY_BPS = 5000</span>), <b>0.50 ETH (50% penalty)</b> will be forfeited upon settlement via <span className="mono">penalise()</span>.
+                </p>
+              </div>
+            </div>
+            <div className="banner-countdown-box" style={{ borderColor: "var(--red)", background: "rgba(239, 68, 68, 0.15)" }}>
+              <span className="banner-countdown-label" style={{ color: "var(--red)" }}>Seed Window Closed</span>
+              <span className="banner-countdown-time red-text">00:00:00</span>
+              <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>Slashing Active</span>
+            </div>
+          </div>
+          <div className="banner-metrics-strip">
+            <div className="metrics-chips">
+              <div className="metric-chip">
+                <span className="chip-label">Staked Deposit:</span>
+                <span className="chip-val">1.00 ETH</span>
+              </div>
+              <div className="metric-chip">
+                <span className="chip-label">Penalty Slashed:</span>
+                <span className="chip-val red-text">-0.50 ETH (50%)</span>
+              </div>
+              <div className="metric-chip">
+                <span className="chip-label">Remaining Stake:</span>
+                <span className="chip-val">0.50 ETH</span>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : isSeedPhase && !isSeedRevealed ? (
         /* SEED PHASE WARNING */
         <div className="slashing-alert-banner banner-warning">
@@ -514,6 +721,105 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
             </div>
           </div>
         </div>
+      ) : isSeedPhase && isSeedRevealed ? (
+        /* SEED PHASE SUCCESS BANNER */
+        <div className="slashing-alert-banner banner-protected">
+          <div className="banner-header">
+            <div className="banner-title-area">
+              <div className="banner-icon">🎲</div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <h2 className="banner-title" style={{ color: "var(--mint)" }}>
+                    {v.seedsRevealed >= 3 ? "Seed Quorum Reached — Ready to Draw Paper!" : "Seed Registered On-Chain — Awaiting Quorum"}
+                  </h2>
+                  <span className="pill pill-mint small">✓ Seed Duty Fulfilled</span>
+                  <span className="pill pill-muted small mono">{v.seedsRevealed}/3 Seeds Revealed</span>
+                </div>
+                <p className="banner-desc">
+                  {v.seedsRevealed >= 3
+                    ? "Cryptographic entropy threshold has been achieved! You can now draw the exam paper to enter the key reveal phase."
+                    : "Your entropy seed is recorded on Ethereum. Once 3 custodians submit their seeds, the paper selection draw will unlock."}
+                </p>
+              </div>
+            </div>
+            <div className="banner-countdown-box" style={{ borderColor: "var(--mint-border)", background: "rgba(194, 128, 62, 0.08)" }}>
+              <span className="banner-countdown-label" style={{ color: "var(--mint)" }}>Seed Quorum</span>
+              <span className="banner-countdown-time mint-text">{v.seedsRevealed} / 3</span>
+              <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>Threshold for Draw</span>
+            </div>
+          </div>
+        </div>
+      ) : isCommitPhase ? (
+        /* PHASE 1: CRYPTOGRAPHIC COMMIT PHASE BANNER */
+        <div className="slashing-alert-banner banner-commit">
+          <div className="banner-header">
+            <div className="banner-title-area">
+              <div className="banner-icon">🔒</div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <h2 className="banner-title" style={{ color: "var(--cobalt-bright)" }}>
+                    Phase 1: Cryptographic Commit Phase — Fingerprint Registration
+                  </h2>
+                  <span className={`pill small ${hasCommittedAll ? "pill-mint" : "pill-amber"}`}>
+                    {hasCommittedAll ? "✓ Fingerprints Sealed On-Chain" : "⚠️ Fingerprints Pending"}
+                  </span>
+                  <span className="pill pill-muted small mono">ExamVault Storage</span>
+                </div>
+                <p className="banner-desc">
+                  Before the exam deadline, each custodian must commit the <b>Keccak-256 cryptographic fingerprints</b> of their 3 candidate paper shares (A, B, C) and entropy seed to Ethereum.
+                  Once locked in smart contract storage, <b>keys cannot be altered, substituted, or denied</b>. At exam reveal time, any mismatched key byte is mathematically rejected by <span className="mono">HashMismatch()</span>.
+                </p>
+              </div>
+            </div>
+            <div className="banner-countdown-box" style={{ borderColor: "rgba(194, 128, 62, 0.4)", background: "rgba(194, 128, 62, 0.12)" }}>
+              <span className="banner-countdown-label" style={{ color: "var(--cobalt-bright)" }}>Commit Phase Closes In</span>
+              <span className="banner-countdown-time amber-text">⏱️ {fmtCountdown(timeLeft)}</span>
+              <span className="small muted mono" style={{ fontSize: "11px", marginTop: "2px" }}>Until Exam Deadline</span>
+            </div>
+          </div>
+
+          <div className="banner-metrics-strip">
+            <div className="metrics-chips">
+              <div className="metric-chip">
+                <span className="chip-label">Piece Fingerprints:</span>
+                <span className={`chip-val ${arePiecesCommitted ? "mint-text" : "amber-text"}`}>
+                  {arePiecesCommitted ? "✓ 3 / 3 Sealed" : "0 / 3 Committed"}
+                </span>
+              </div>
+              <div className="metric-chip">
+                <span className="chip-label">Entropy Seed Fingerprint:</span>
+                <span className={`chip-val ${isSeedCommitted ? "mint-text" : "amber-text"}`}>
+                  {isSeedCommitted ? "✓ 1 / 1 Sealed" : "0 / 1 Committed"}
+                </span>
+              </div>
+              <div className="metric-chip">
+                <span className="chip-label">Deposit Collateral:</span>
+                <span className="chip-val mint-text">1.00 ETH Staked</span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              {!hasCommittedAll ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={keyFile ? handleCommitFingerprints : handleQuickLoad}
+                  disabled={submitting}
+                >
+                  {keyFile ? "🔒 Upload & Commit Fingerprints to Contract" : "⚡ Quick-Load Key & Commit"}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleFastForwardDeadline}
+                  disabled={submitting}
+                  title="Fast forwards chain time past exam countdown"
+                >
+                  ⚡ Fast-Forward to Exam Deadline
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* Main Stats / Status Row */}
@@ -535,8 +841,20 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                 🚨 Missed Deadline (Slashable)
               </span>
             ) : isSeedRevealed ? (
+              <span className="pill pill-mint" style={{ fontSize: "14px", padding: "6px 14px" }}>
+                ✓ Seed Registered ({v.seedsRevealed}/3 Seeds)
+              </span>
+            ) : isSeedPhase && seedTimeLeft === 0 ? (
+              <span className="pill pill-red" style={{ fontSize: "14px", padding: "6px 14px" }}>
+                🚨 Missed Seed Deadline (Slashable)
+              </span>
+            ) : isSeedPhase ? (
               <span className="pill pill-amber" style={{ fontSize: "14px", padding: "6px 14px" }}>
-                🎲 Seed Registered ({v.seedsRevealed}/3 Seeds)
+                🎲 Seed Duty Pending
+              </span>
+            ) : isCommitPhase ? (
+              <span className={`pill ${hasCommittedAll ? "pill-mint" : "pill-amber"}`} style={{ fontSize: "14px", padding: "6px 14px" }}>
+                {hasCommittedAll ? "✓ Fingerprints Sealed On-Chain" : "⚠️ Commit Fingerprints Pending"}
               </span>
             ) : (
               <span className="pill pill-muted" style={{ fontSize: "14px", padding: "6px 14px" }}>
@@ -553,8 +871,14 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               ? `Reveal window closed. Custodian #${currentIndex} did not upload; 0.50 ETH is subject to slashing.`
               : isSeedRevealed && !v.paperSelected
               ? `Entropy seed registered! Awaiting remaining custodians (${v.seedsRevealed}/3 seeds) to determine paper.`
+              : isSeedPhase && seedTimeLeft === 0
+              ? `Seed window closed. Custodian #${currentIndex} did not submit entropy seed; 0.50 ETH is subject to slashing.`
               : isSeedPhase
               ? "Window open! Submit your seed now to complete your on-chain duty."
+              : isCommitPhase
+              ? hasCommittedAll
+                ? `All 4 cryptographic fingerprints (Papers A, B, C & seed) are sealed in ExamVault storage. Awaiting countdown completion.`
+                : `Commit Phase: Register your key fingerprints on Ethereum before exam countdown ends.`
               : "Upload and submit your key before or at the exam deadline."}
           </p>
         </div>
@@ -568,10 +892,12 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               ? "PHASE 1: EXAM COUNTDOWN"
               : isPieceRevealed
               ? "PHASE 3: YOUR DUTY FULFILLED"
-              : isWindowExpired
+              : !v.paperSelected && isSeedRevealed
+              ? (v.seedsRevealed >= 3 ? "PHASE 2: CONSENSUS READY" : "PHASE 2: SEED REGISTERED")
+              : hasMissedDuty
               ? "DUTY WINDOW EXPIRED"
               : isRevealPhase
-              ? `PHASE 2: KEY REVEAL WINDOW (PAPER ${PAPER_NAMES[v.selectedPaper]})`
+              ? `PHASE 3: KEY REVEAL WINDOW (PAPER ${PAPER_NAMES[v.selectedPaper]})`
               : "PHASE 2: SEED ENTROPY CONSENSUS"}
           </span>
           <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
@@ -581,7 +907,15 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               fmtCountdown(timeLeft)
             ) : isPieceRevealed ? (
               <span className="mint-text" style={{ fontSize: "22px" }}>✓ 1.00 ETH PROTECTED</span>
-            ) : isWindowExpired ? (
+            ) : !v.paperSelected && isSeedRevealed ? (
+              v.seedsRevealed >= 3 ? (
+                <span className="mint-text" style={{ fontSize: "22px" }}>✓ {v.seedsRevealed}/3 SEEDS READY</span>
+              ) : (
+                <span className={seedTimeLeft < 60 ? "red-text" : "amber-text"}>
+                  {fmtCountdown(seedTimeLeft)}
+                </span>
+              )
+            ) : hasMissedDuty ? (
               <span className="red-text" style={{ fontSize: "22px" }}>00:00:00 (EXPIRED)</span>
             ) : isRevealPhase ? (
               <span className={revealTimeLeft < 120 ? "red-text" : "amber-text"}>
@@ -603,18 +937,21 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                 ✓ Key share verified on Ethereum. Custodian #{currentIndex} has zero slashing risk.
                 {revealTimeLeft > 0 ? ` (Remaining reveal window: ${fmtCountdown(revealTimeLeft)} for other custodians).` : ""}
               </span>
-            ) : isWindowExpired ? (
+            ) : !v.paperSelected && isSeedRevealed ? (
+              <span className="mint-text">
+                ✓ Your seed is registered on-chain ({v.seedsRevealed}/3 seeds revealed).
+                {v.seedsRevealed >= 3
+                  ? " Consensus threshold reached! Click 'Draw Paper' to randomly select the paper."
+                  : ` Awaiting remaining custodians before window closes (${fmtCountdown(seedTimeLeft)}).`}
+              </span>
+            ) : hasMissedDuty ? (
               <span className="red-text">Duty window closed. Custodian #{currentIndex} missed deadline; 50% deposit (0.50 ETH) is slashed!</span>
             ) : isRevealPhase ? (
               <span className="amber-text">
                 ⚠️ <b>Action Required:</b> {revealMinutesLeft} min remaining to upload key share or 0.50 ETH will be slashed! (Even if 3/5 quorum is reached, delinquent staff are still penalized).
               </span>
             ) : (
-              isSeedRevealed ? (
-                <span className="mint-text">✓ Your seed is registered on-chain. ({v.seedsRevealed}/3 seeds revealed for consensus).</span>
-              ) : (
-                <span className="amber-text">⚠️ <b>Seed Window Active:</b> Reveal entropy seed to randomly select paper.</span>
-              )
+              <span className="amber-text">⚠️ <b>Seed Window Active:</b> Reveal entropy seed to randomly select paper.</span>
             )}
           </p>
         </div>
@@ -623,7 +960,7 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
         <div className="card">
           <span className="eyebrow">YOUR STAKE DEPOSIT</span>
           <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
-            <span className={staffMember?.penalised ? "red-text" : isPieceRevealed ? "mint-text" : isRevealPhase && !isPieceRevealed ? "amber-text" : "mint-text"}>
+            <span className={staffMember?.penalised ? "red-text" : isPieceRevealed ? "mint-text" : (!v.paperSelected && isSeedRevealed) ? "mint-text" : isRevealPhase && !isPieceRevealed ? "amber-text" : "mint-text"}>
               {staffMember?.penalised ? "0.50" : "1.00"}
             </span>
             <span className="muted" style={{ fontSize: "20px" }}> ETH</span>
@@ -635,10 +972,12 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               <span className="pill pill-mint small">✓ 100% Protected (No Slash)</span>
             ) : isSeedRevealed && !v.paperSelected ? (
               <span className="pill pill-mint small">✓ Seed Duty Fulfilled</span>
+            ) : hasMissedDuty ? (
+              <span className="pill pill-red small">🚨 0.50 ETH Slashable</span>
             ) : isRevealPhase && revealTimeLeft > 0 ? (
               <span className="pill pill-amber small">⚠️ 0.50 ETH At Risk</span>
-            ) : isRevealPhase && revealTimeLeft === 0 ? (
-              <span className="pill pill-red small">🚨 0.50 ETH Slashable</span>
+            ) : isSeedPhase && seedTimeLeft > 0 ? (
+              <span className="pill pill-amber small">⚠️ 0.50 ETH At Risk</span>
             ) : (
               <span className="pill pill-mint small">✓ Deposit Active (Escrow)</span>
             )}
@@ -653,10 +992,12 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               ? "Duty fulfilled. Your full 1.00 ETH deposit is protected and refundable."
               : isSeedRevealed && !v.paperSelected
               ? "Entropy seed confirmed on-chain. Collateral safe."
+              : hasMissedDuty
+              ? "Window expired without upload. Subject to 50% penalty (0.50 ETH) upon settlement."
               : isRevealPhase && revealTimeLeft > 0
               ? `Upload key share within ${fmtCountdown(revealTimeLeft)} (${revealMinutesLeft}m) to avoid 50% (0.50 ETH) slash.`
-              : isRevealPhase && revealTimeLeft === 0
-              ? "Window expired without upload. Subject to 50% penalty (0.50 ETH) upon settlement."
+              : isSeedPhase && seedTimeLeft > 0
+              ? `Submit entropy seed within ${fmtCountdown(seedTimeLeft)} to avoid 50% (0.50 ETH) slash.`
               : "Submitting your key piece during the reveal window prevents stake slashing."}
           </p>
         </div>
@@ -859,6 +1200,12 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                   {["A", "B", "C"].map((pLetter, pIdx) => {
                     const isSelected = v.paperSelected && v.selectedPaper === pIdx;
                     const pieceHex = keyFile.pieces?.[pIdx] || "";
+                    const computedFp = computedFingerprints.pieces[pIdx];
+                    const onChainFp = staffMember?.pieceCommits?.[pIdx];
+                    const isMatchesOnChain =
+                      computedFp && onChainFp && computedFp.toLowerCase() === onChainFp.toLowerCase();
+                    const hasOnChainFp = onChainFp && !/^0x0+$/.test(onChainFp);
+
                     return (
                       <div key={pLetter} className={`share-piece-box ${isSelected ? "highlight" : ""}`}>
                         <div className="share-label">
@@ -869,28 +1216,84 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                             <span className="muted mono" style={{ fontSize: "10px" }}>CANDIDATE</span>
                           ) : null}
                         </div>
-                        <div className="share-hex mono" title={pieceHex}>
-                          {pieceHex ? `${pieceHex.slice(0, 10)}…${pieceHex.slice(-8)}` : "—"}
+
+                        {/* Raw 32-byte secret piece in memory */}
+                        <div style={{ marginBottom: "8px" }}>
+                          <div className="muted mono" style={{ fontSize: "10px", marginBottom: "2px" }}>
+                            32-BYTE SECRET PIECE (LOCAL ONLY):
+                          </div>
+                          <div className="share-hex mono" title={pieceHex} style={{ fontSize: "12px" }}>
+                            {pieceHex ? `${pieceHex.slice(0, 10)}…${pieceHex.slice(-8)}` : "—"}
+                          </div>
                         </div>
-                        <div className="muted mono" style={{ fontSize: "10.5px", marginTop: "4px" }}>
-                          32-Byte Secret Piece
+
+                        {/* Keccak-256 Commitment Fingerprint */}
+                        <div style={{ background: "rgba(0,0,0,0.3)", padding: "7px 9px", borderRadius: "8px", border: "1px solid var(--border)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                            <span className="muted mono" style={{ fontSize: "9.5px", fontWeight: "700" }}>
+                              KECCAK-256 FINGERPRINT:
+                            </span>
+                            {isMatchesOnChain ? (
+                              <span className="mint-text mono" style={{ fontSize: "9.5px", fontWeight: "700" }}>✓ ON-CHAIN</span>
+                            ) : hasOnChainFp ? (
+                              <span className="mint-text mono" style={{ fontSize: "9.5px" }}>SEALED</span>
+                            ) : (
+                              <span className="amber-text mono" style={{ fontSize: "9.5px" }}>PENDING COMMIT</span>
+                            )}
+                          </div>
+                          <div
+                            className="mono small"
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--cobalt-bright)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                            title={computedFp || onChainFp || ""}
+                          >
+                            {computedFp
+                              ? `${computedFp.slice(0, 12)}…${computedFp.slice(-8)}`
+                              : onChainFp
+                              ? `${onChainFp.slice(0, 12)}…${onChainFp.slice(-8)}`
+                              : "—"}
+                          </div>
+                          <div className="muted mono" style={{ fontSize: "9px", marginTop: "3px" }}>
+                            keccak256(vault, staff, {pIdx}, piece)
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                <div className="seed-box">
-                  <div>
-                    <span className="muted mono small">ENTROPY SEED: </span>
-                    <span className="mono" style={{ fontWeight: "600", color: "var(--text)" }}>
-                      {keyFile.seed !== undefined ? `0x${BigInt(keyFile.seed).toString(16)}` : "N/A"}
+                <div className="seed-box" style={{ flexDirection: "column", alignItems: "stretch", gap: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                    <div>
+                      <span className="muted mono small">ENTROPY SEED NUMBER: </span>
+                      <span className="mono" style={{ fontWeight: "600", color: "var(--text)" }}>
+                        {keyFile.seed !== undefined ? `0x${BigInt(keyFile.seed).toString(16)}` : "N/A"}
+                      </span>
+                    </div>
+                    <span className="mint-text mono small">✓ Valid Commit-Reveal Format</span>
+                  </div>
+
+                  <div style={{ background: "rgba(0,0,0,0.3)", padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span className="muted mono" style={{ fontSize: "10px", fontWeight: "700" }}>
+                        SEED COMMITMENT FINGERPRINT:
+                      </span>
+                      <span className="mono small" style={{ color: "var(--mint)", fontSize: "11.5px" }} title={computedFingerprints.seed || ""}>
+                        {computedFingerprints.seed ? `${computedFingerprints.seed.slice(0, 14)}…${computedFingerprints.seed.slice(-8)}` : "—"}
+                      </span>
+                    </div>
+                    <span className={`pill small mono ${isSeedCommitted ? "pill-mint" : "pill-amber"}`} style={{ fontSize: "10px", padding: "2px 8px" }}>
+                      {isSeedCommitted ? "✓ Seed Sealed On-Chain" : "Ready to Commit"}
                     </span>
                   </div>
-                  <span className="mint-text mono small">✓ Valid Commit-Reveal Format</span>
                 </div>
 
-                <div className="mono small muted" style={{ marginTop: "8px", fontSize: "11px" }}>
+                <div className="mono small muted" style={{ marginTop: "10px", fontSize: "11px" }}>
                   {!v.paperSelected
                     ? "ℹ️ Candidate paper (A, B, or C) will be randomly drawn on Ethereum once 3 custodian seeds are submitted."
                     : `★ Paper ${PAPER_NAMES[v.selectedPaper]} was selected on-chain. Submitting this file reveals your Paper ${PAPER_NAMES[v.selectedPaper]} share.`}
@@ -898,24 +1301,214 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
               </div>
             )}
 
+            {/* Permanent On-Chain Commitment Fingerprint Ledger */}
+            <div style={{ marginTop: "14px", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "14px", padding: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "18px" }}>🔒</span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: "700" }}>
+                      On-Chain Commitment Fingerprints Ledger (Staff #{currentIndex})
+                    </h4>
+                    <span className="small muted">
+                      Permanent 32-byte Keccak-256 hashes registered in ExamVault smart contract storage
+                    </span>
+                  </div>
+                </div>
+                <span className={`pill small mono ${arePiecesCommitted ? "pill-mint" : "pill-amber"}`}>
+                  {arePiecesCommitted ? "✓ 3/3 Hashes Sealed in Contract" : "⚠️ Commit Pending"}
+                </span>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "10px" }}>
+                {["A", "B", "C"].map((pLetter, pIdx) => {
+                  const commitHash = staffMember?.pieceCommits?.[pIdx] || "";
+                  const isCommitted = commitHash && !/^0x0+$/.test(commitHash);
+                  return (
+                    <div key={pLetter} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "10px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <span className="mono small" style={{ fontWeight: "700", color: "var(--muted)", fontSize: "11px" }}>
+                          PAPER {pLetter} COMMITMENT
+                        </span>
+                        <span className={`mono ${isCommitted ? "mint-text" : "amber-text"}`} style={{ fontSize: "10px", fontWeight: "700" }}>
+                          {isCommitted ? "SEALED ON-CHAIN ✓" : "UNCOMMITTED"}
+                        </span>
+                      </div>
+                      <div className="mono small" style={{ color: isCommitted ? "var(--text)" : "var(--muted)", wordBreak: "break-all", fontSize: "11.5px" }}>
+                        {isCommitted ? commitHash : "0x0000000000000000000000000000000000000000000000000000000000000000"}
+                      </div>
+                      <div className="mono muted" style={{ fontSize: "9.5px", marginTop: "4px" }}>
+                        Contract checks: keccak256(vault, staff, {pIdx}, piece)
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={{ marginTop: "16px", display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-              {isSeedRevealed && !v.paperSelected ? (
+              {v.examTime === 0 ? (
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={() => { window.location.hash = "#/admin"; }}
+                >
+                  🏛️ Schedule Exam in Admin Portal ➔
+                </button>
+              ) : isCommitPhase && !hasCommittedAll ? (
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={handleCommitFingerprints}
+                  disabled={!keyFile || submitting}
+                >
+                  {submitting ? "Sealing Fingerprints..." : "🔒 Commit Fingerprints to Smart Contract"}
+                </button>
+              ) : isCommitPhase && hasCommittedAll ? (
                 <>
                   <button
                     className="btn btn-ghost btn-lg"
                     disabled
-                    style={{ opacity: 0.8 }}
+                    style={{ opacity: 0.9 }}
                   >
-                    ✓ Seed Registered (Waiting for 3 Custodians)
+                    ✓ Fingerprints Sealed On-Chain
+                  </button>
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={handleFastForwardDeadline}
+                    disabled={submitting}
+                  >
+                    ⚡ Fast-Forward to Exam Deadline
+                  </button>
+                </>
+              ) : isPieceRevealed ? (
+                <>
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    disabled
+                    style={{ opacity: 0.9, borderColor: "var(--mint-border)", color: "var(--mint)" }}
+                  >
+                    ✓ Paper {PAPER_NAMES[v.selectedPaper]} Share Confirmed (1.00 ETH Protected)
+                  </button>
+                  {isUnlocked ? (
+                    <button
+                      className="btn btn-primary btn-lg"
+                      onClick={() => { window.location.hash = "#/college"; }}
+                    >
+                      🏫 Go to College Exam Download ➔
+                    </button>
+                  ) : (
+                    <>
+                      {currentIndex < 5 && (
+                        <button
+                          className="btn btn-secondary btn-lg"
+                          onClick={() => { window.location.hash = `#/staff/${currentIndex + 1}`; }}
+                        >
+                          Switch to Custodian #{currentIndex + 1} ➔
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-ghost btn-lg"
+                        onClick={handleAutoSubmitQuorum}
+                        disabled={submitting}
+                      >
+                        ⚡ Auto-Submit Quorum (Staff 1–3)
+                      </button>
+                    </>
+                  )}
+                </>
+              ) : isSeedPhase && !isSeedRevealed && seedTimeLeft === 0 ? (
+                <>
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    disabled
+                    style={{ opacity: 0.8, borderColor: "rgba(239, 68, 68, 0.4)", color: "var(--red)" }}
+                  >
+                    🚨 Seed Window Expired (0.50 ETH Slashed)
                   </button>
                   {currentIndex < 5 && (
                     <button
-                      className="btn btn-primary btn-lg"
+                      className="btn btn-secondary btn-lg"
                       onClick={() => { window.location.hash = `#/staff/${currentIndex + 1}`; }}
                     >
                       Switch to Custodian #{currentIndex + 1} ➔
                     </button>
                   )}
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    onClick={handleAutoSubmitQuorum}
+                    disabled={submitting}
+                  >
+                    ⚡ Auto-Submit Quorum (Staff 1–3)
+                  </button>
+                </>
+              ) : isRevealPhase && !isPieceRevealed && revealTimeLeft === 0 ? (
+                <>
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    disabled
+                    style={{ opacity: 0.8, borderColor: "rgba(239, 68, 68, 0.4)", color: "var(--red)" }}
+                  >
+                    🚨 Reveal Window Expired (0.50 ETH Slashed)
+                  </button>
+                  {currentIndex < 5 && (
+                    <button
+                      className="btn btn-secondary btn-lg"
+                      onClick={() => { window.location.hash = `#/staff/${currentIndex + 1}`; }}
+                    >
+                      Switch to Custodian #{currentIndex + 1} ➔
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    onClick={handleAutoSubmitQuorum}
+                    disabled={submitting}
+                  >
+                    ⚡ Auto-Submit Quorum (Staff 1–3)
+                  </button>
+                </>
+              ) : isSeedRevealed && !v.paperSelected ? (
+                <>
+                  {v.seedsRevealed >= 3 ? (
+                    <button
+                      className="btn btn-primary btn-lg"
+                      onClick={handleDrawPaper}
+                      disabled={submitting}
+                    >
+                      {submitting ? "Drawing Paper On-Chain..." : "🎲 Draw Paper (Consensus Ready)"}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-ghost btn-lg"
+                      disabled
+                      style={{ opacity: 0.8 }}
+                    >
+                      ✓ Seed Registered ({v.seedsRevealed}/3 Seeds)
+                    </button>
+                  )}
+                  {currentIndex < 5 && (
+                    <button
+                      className="btn btn-secondary btn-lg"
+                      onClick={() => { window.location.hash = `#/staff/${currentIndex + 1}`; }}
+                    >
+                      Switch to Custodian #{currentIndex + 1} ➔
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    onClick={handleAutoSubmitQuorum}
+                    disabled={submitting}
+                  >
+                    ⚡ Auto-Submit Quorum (Staff 1–3)
+                  </button>
+                </>
+              ) : !v.paperSelected ? (
+                <>
+                  <button
+                    className="btn btn-primary btn-lg"
+                    onClick={handleSubmitKey}
+                    disabled={!keyFile || submitting}
+                  >
+                    {submitting ? "Submitting Seed to Blockchain..." : "🎲 Submit Entropy Seed"}
+                  </button>
                   <button
                     className="btn btn-ghost btn-lg"
                     onClick={handleAutoSubmitQuorum}
@@ -933,19 +1526,15 @@ export default function Staff({ vault: v, refresh, staffId = 1 }) {
                   >
                     {submitting
                       ? "Submitting to Blockchain..."
-                      : v.paperSelected
-                      ? `Submit Paper ${PAPER_NAMES[v.selectedPaper]} Share`
-                      : "Submit Key to Smart Contract"}
+                      : `Submit Paper ${PAPER_NAMES[v.selectedPaper]} Share`}
                   </button>
-                  {isSeedRevealed && (
-                    <button
-                      className="btn btn-ghost btn-lg"
-                      onClick={handleAutoSubmitQuorum}
-                      disabled={submitting}
-                    >
-                      ⚡ Auto-Submit Quorum (Staff 1–3)
-                    </button>
-                  )}
+                  <button
+                    className="btn btn-ghost btn-lg"
+                    onClick={handleAutoSubmitQuorum}
+                    disabled={submitting}
+                  >
+                    ⚡ Auto-Submit Quorum (Staff 1–3)
+                  </button>
                 </>
               )}
             </div>

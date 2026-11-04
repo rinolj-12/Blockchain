@@ -5,8 +5,11 @@ import {
   autoSubmitRemainingQuorum,
   examPhase,
   fastForwardChain,
+  fastForwardToTime,
   fillSeedsAndSelect,
+  postponeExam,
   resolvePaperSelection,
+  slashDelinquentCustodians,
   startExamCountdown,
   useChainNow,
 } from "../lib/chain.js";
@@ -95,13 +98,13 @@ export default function Admin({ vault: v, refresh }) {
   };
 
   const handleFastForwardDeadline = async () => {
-    if (timeLeft <= 0) return;
+    if (!v.examTime) return;
     setTxModal({
       isOpen: true,
       title: "Fast-Forwarding Blockchain Time",
-      subtitle: `Simulating time-warp (+${timeLeft + 2}s) past the exam deadline on Hardhat`,
+      subtitle: `Simulating time-warp past the exam deadline on Hardhat`,
       steps: [
-        { label: "Increasing EVM Timestamp", detail: `Calling evm_increaseTime(${timeLeft + 2})` },
+        { label: "Increasing EVM Timestamp", detail: "Advancing block clock past deadline" },
         { label: "Mining Confirmation Block", detail: "Mining new block with updated timestamp" },
       ],
       currentStepIndex: 0,
@@ -111,7 +114,7 @@ export default function Admin({ vault: v, refresh }) {
 
     try {
       setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
-      await fastForwardChain(timeLeft + 2);
+      await fastForwardToTime(v.examTime + 2);
       await refresh?.();
       setTxModal((prev) => ({ ...prev, isComplete: true }));
       setNotice({ tone: "mint", msg: "Blockchain time successfully advanced past the exam deadline!" });
@@ -124,13 +127,14 @@ export default function Admin({ vault: v, refresh }) {
   };
 
   const handleFastForwardSeedWindow = async () => {
-    if (activeWindowLeft <= 0) return;
+    if (!v.examTime) return;
+    const seedDeadline = v.examTime + seedWindowDuration;
     setTxModal({
       isOpen: true,
       title: "Fast-Forwarding Seed Challenge Window",
-      subtitle: `Advancing EVM block time (+${activeWindowLeft + 2}s) past entropy challenge window`,
+      subtitle: `Advancing EVM block time past entropy challenge window`,
       steps: [
-        { label: "Increasing EVM Timestamp", detail: `Calling evm_increaseTime(${activeWindowLeft + 2})` },
+        { label: "Increasing EVM Timestamp", detail: "Advancing block clock past seed window" },
         { label: "Mining Confirmation Block", detail: "Mining new block with updated timestamp" },
       ],
       currentStepIndex: 0,
@@ -140,7 +144,7 @@ export default function Admin({ vault: v, refresh }) {
 
     try {
       setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
-      await fastForwardChain(activeWindowLeft + 2);
+      await fastForwardToTime(seedDeadline + 2);
       await refresh?.();
       setTxModal((prev) => ({ ...prev, isComplete: true }));
       setNotice({ tone: "mint", msg: "Seed challenge window has closed on Ethereum!" });
@@ -148,6 +152,94 @@ export default function Admin({ vault: v, refresh }) {
       setTxModal((prev) => ({
         ...prev,
         error: err.shortMessage || err.message || "Could not fast forward seed window.",
+      }));
+    }
+  };
+
+  const handleFastForwardRevealWindow = async () => {
+    if (!v.examTime) return;
+    const revealDeadline = (v.selectedAt || v.examTime) + revealWindowDuration;
+    setTxModal({
+      isOpen: true,
+      title: "Fast-Forwarding Reveal Window",
+      subtitle: "Advancing EVM block time past key reveal window",
+      steps: [
+        { label: "Increasing EVM Timestamp", detail: "Advancing block clock past reveal window" },
+        { label: "Mining Confirmation Block", detail: "Mining new block with updated timestamp" },
+      ],
+      currentStepIndex: 0,
+      isComplete: false,
+      error: null,
+    });
+
+    try {
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
+      await fastForwardToTime(revealDeadline + 2);
+      await refresh?.();
+      setTxModal((prev) => ({ ...prev, isComplete: true }));
+      setNotice({ tone: "mint", msg: "Key reveal window has closed on Ethereum!" });
+    } catch (err) {
+      setTxModal((prev) => ({
+        ...prev,
+        error: err.shortMessage || err.message || "Could not fast forward reveal window.",
+      }));
+    }
+  };
+
+  const handleSlashDelinquent = async () => {
+    setTxModal({
+      isOpen: true,
+      title: "Slashing Delinquent Custodians",
+      subtitle: "Executing penalise() on delinquent staff who missed duties",
+      steps: [
+        { label: "Verify Delinquent Custodians", detail: "Checking missed duties on-chain" },
+        { label: "Broadcast penalise()", detail: "Slashes 50% deposit to contract treasury" },
+      ],
+      currentStepIndex: 0,
+      isComplete: false,
+      error: null,
+    });
+
+    try {
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
+      const count = await slashDelinquentCustodians((msg) => {
+        setNotice({ tone: "red", msg });
+      });
+      await refresh?.();
+      setTxModal((prev) => ({ ...prev, isComplete: true }));
+      setNotice({ tone: "mint", msg: `Successfully slashed 50% collateral for ${count} delinquent custodian(s)!` });
+    } catch (err) {
+      setTxModal((prev) => ({
+        ...prev,
+        error: err.shortMessage || err.message || "Could not slash delinquent custodians.",
+      }));
+    }
+  };
+
+  const handlePostponeExam = async () => {
+    setTxModal({
+      isOpen: true,
+      title: "Postponing Failed Examination",
+      subtitle: "Smart contract abort: threshold quorum could not be achieved",
+      steps: [
+        { label: "Verify Duty Windows Closed", detail: "Confirming dutiesOver() is true on-chain" },
+        { label: "Broadcast postpone()", detail: "Permanently marking exam as postponed" },
+      ],
+      currentStepIndex: 0,
+      isComplete: false,
+      error: null,
+    });
+
+    try {
+      setTxModal((prev) => ({ ...prev, currentStepIndex: 1 }));
+      await postponeExam((msg) => setNotice({ tone: "red", msg }));
+      await refresh?.();
+      setTxModal((prev) => ({ ...prev, isComplete: true }));
+      setNotice({ tone: "red", msg: "Exam has been officially marked as postponed on Ethereum." });
+    } catch (err) {
+      setTxModal((prev) => ({
+        ...prev,
+        error: err.shortMessage || err.message || "Could not postpone exam.",
       }));
     }
   };
@@ -348,10 +440,14 @@ export default function Admin({ vault: v, refresh }) {
               ? "PHASE 1: EXAM COUNTDOWN"
               : isUnlocked
               ? "PHASE 3: VAULT UNLOCKED"
+              : v.postponed
+              ? "EXAM POSTPONED"
+              : v.paperSelected
+              ? "PHASE 3: KEY REVEAL WINDOW"
+              : seedsUploaded >= 3
+              ? "PHASE 2: CONSENSUS READY"
               : isWindowExpired
               ? "DUTY WINDOW EXPIRED"
-              : isRevealPhase
-              ? "PHASE 2: KEY REVEAL WINDOW"
               : "PHASE 2: SEED REVEAL WINDOW"}
           </span>
           <div className="mono" style={{ fontSize: "28px", fontWeight: "700", margin: "8px 0" }}>
@@ -361,6 +457,8 @@ export default function Admin({ vault: v, refresh }) {
               fmtCountdown(timeLeft)
             ) : isUnlocked ? (
               <span className="mint-text" style={{ fontSize: "22px" }}>✓ 3/5 UNLOCKED</span>
+            ) : v.postponed ? (
+              <span className="red-text" style={{ fontSize: "22px" }}>POSTPONED</span>
             ) : isWindowExpired ? (
               <span className="red-text" style={{ fontSize: "22px" }}>00:00:00 (EXPIRED)</span>
             ) : (
@@ -376,15 +474,21 @@ export default function Admin({ vault: v, refresh }) {
               <>Deadline: <b>{fmtLocalTime(v.examTime)}</b> (keys locked on-chain)</>
             ) : isUnlocked ? (
               <span className="mint-text">✓ 3-of-5 Quorum reached. Vault is unlocked for exam halls.</span>
+            ) : v.postponed ? (
+              <span className="red-text">Exam postponed on-chain. Collateral penalty enforced.</span>
             ) : isWindowExpired ? (
               <span className="red-text">Duty window expired! Delinquent custodians can now be slashed.</span>
-            ) : isRevealPhase ? (
+            ) : v.paperSelected ? (
               <span className="amber-text">
-                ⚠️ <b>Active Slashing Window:</b> Custodians have {fmtCountdown(activeWindowLeft)} to submit shares or forfeit 1.0 ETH collateral.
+                ⚠️ <b>Active Key Reveal Window:</b> Custodians have {fmtCountdown(activeWindowLeft)} to submit shares or forfeit 0.50 ETH deposit.
+              </span>
+            ) : seedsUploaded >= 3 ? (
+              <span className="mint-text">
+                ✓ <b>Seed Quorum Met ({seedsUploaded}/3 seeds):</b> Window closes in {fmtCountdown(activeWindowLeft)}. Ready to draw candidate paper A, B, or C below.
               </span>
             ) : (
               <span className="amber-text">
-                ⚠️ <b>Seed Window Active:</b> Awaiting staff seeds ({fmtCountdown(activeWindowLeft)} left) for entropy consensus.
+                ⚠️ <b>Seed Window Active:</b> Awaiting staff seeds ({fmtCountdown(activeWindowLeft)} left, {seedsUploaded}/3 submitted) for entropy consensus.
               </span>
             )}
           </p>
@@ -399,7 +503,7 @@ export default function Admin({ vault: v, refresh }) {
             </button>
           )}
 
-          {v.examTime > 0 && timeLeft === 0 && !v.paperSelected && (
+          {v.examTime > 0 && timeLeft === 0 && !v.paperSelected && !v.postponed && (
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
               {activeWindowLeft > 0 && (
                 <button
@@ -415,18 +519,53 @@ export default function Admin({ vault: v, refresh }) {
                 <button className="btn btn-primary btn-sm" onClick={handleSelectPaper}>
                   🎲 Draw Paper (Consensus Ready)
                 </button>
-              ) : (
+              ) : activeWindowLeft > 0 ? (
                 <button className="btn btn-primary btn-sm" onClick={handleFastTrackConsensus}>
                   ⚡ Fast-Track Consensus (Draw Now)
+                </button>
+              ) : null}
+              {activeWindowLeft === 0 && seedsUploaded < 3 && (
+                <button className="btn btn-secondary btn-sm" onClick={handlePostponeExam} style={{ borderColor: "var(--red)", color: "var(--red)" }}>
+                  🛑 Postpone Exam (Quorum Failed)
                 </button>
               )}
             </div>
           )}
 
-          {v.paperSelected && !isUnlocked && (
+          {v.paperSelected && !isUnlocked && !v.postponed && (
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "8px" }}>
+              {revealTimeLeft > 0 && (
+                <>
+                  <button className="btn btn-primary btn-sm" onClick={handleAutoSubmitQuorum}>
+                    ⚡ Auto-Submit Quorum (Staff 1-3)
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={handleFastForwardRevealWindow}
+                    disabled={isAdvancing}
+                    title="Advances chain clock past key reveal window"
+                  >
+                    ⚡ Fast-Forward Reveal Window
+                  </button>
+                </>
+              )}
+              {revealTimeLeft === 0 && (
+                <>
+                  <button className="btn btn-secondary btn-sm" onClick={handlePostponeExam} style={{ borderColor: "var(--red)", color: "var(--red)" }}>
+                    🛑 Postpone Exam (Reveal Quorum Failed)
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={handleSlashDelinquent}>
+                    🚨 Slash Delinquent Custodians
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {isUnlocked && v.staff?.some((s) => s.missedDuty && !s.penalised) && (
             <div style={{ marginTop: "8px" }}>
-              <button className="btn btn-primary btn-sm" onClick={handleAutoSubmitQuorum}>
-                ⚡ Auto-Submit Quorum (Staff 1-3)
+              <button className="btn btn-secondary btn-sm" onClick={handleSlashDelinquent} style={{ borderColor: "var(--red)", color: "var(--red)" }}>
+                🚨 Slash Delinquent Custodians (-0.50 ETH)
               </button>
             </div>
           )}
@@ -489,6 +628,106 @@ export default function Admin({ vault: v, refresh }) {
 
       {/* Question Paper Vault & IPFS Storage Section */}
       <PaperVaultSection />
+
+      {/* Custodian Cryptographic Commitments Ledger */}
+      <section className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <span className="eyebrow" style={{ color: "var(--mint)" }}>COMMIT-REVEAL SECURITY LEDGER</span>
+            <h2 className="card-title" style={{ margin: "4px 0 2px" }}>
+              🔒 Custodian Commitment Fingerprints (ExamVault Storage)
+            </h2>
+            <p className="muted small" style={{ margin: 0 }}>
+              Before exam start, all 5 custodians commit Keccak-256 fingerprints of their candidate shares and entropy seeds. Immutable in smart contract storage.
+            </p>
+          </div>
+          <span className="pill pill-mint mono small">
+            {v.staff?.every((s) => s.piecesCommitted) ? "✓ 5/5 Custodians Committed" : `${v.staff?.filter((s) => s.piecesCommitted).length || 0}/5 Committed`}
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "12px" }}>
+          {(v.staff || []).map((staff, idx) => {
+            const hasCommits = staff.piecesCommitted && staff.pieceCommits?.length === 3;
+            return (
+              <div
+                key={staff.address || idx}
+                style={{
+                  background: "var(--surface-2)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "12px",
+                  padding: "14px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontWeight: 700, fontSize: "14px" }}>Custodian #{idx + 1}</span>
+                    <span className="mono small muted" title={staff.address}>{shortAddr(staff.address)}</span>
+                  </div>
+                  <span className={`pill small mono ${hasCommits ? "pill-mint" : "pill-amber"}`}>
+                    {hasCommits ? "✓ 3/3 Pieces Committed" : "Pending Commit"}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {["A", "B", "C"].map((pLetter, pIdx) => {
+                    const commitHash = staff.pieceCommits?.[pIdx] || "";
+                    const isCommitted = commitHash && !/^0x0+$/.test(commitHash);
+                    return (
+                      <div
+                        key={pLetter}
+                        style={{
+                          background: "var(--surface)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "6px",
+                          padding: "6px 10px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span className="mono" style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>
+                          Paper {pLetter}:
+                        </span>
+                        <span
+                          className="mono small"
+                          style={{
+                            fontSize: "11px",
+                            color: isCommitted ? "var(--cobalt-bright)" : "var(--muted)",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: "200px",
+                          }}
+                          title={commitHash}
+                        >
+                          {isCommitted ? `${commitHash.slice(0, 10)}…${commitHash.slice(-8)}` : "—"}
+                        </span>
+                        <span className="mono" style={{ fontSize: "9.5px", color: isCommitted ? "var(--mint)" : "var(--amber)" }}>
+                          {isCommitted ? "✓" : "⏳"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "4px", borderTop: "1px solid var(--border)" }}>
+                  <span className="mono small muted" style={{ fontSize: "10.5px" }}>
+                    Seed Commitment: {staff.seedCommitted ? "✓ Sealed" : "Pending"}
+                  </span>
+                  <a href={`#/staff/${idx + 1}`} className="btn btn-ghost btn-sm" style={{ fontSize: "11px", padding: "2px 8px" }}>
+                    Custodian Portal ↗
+                  </a>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Protocol Telemetry & Cryptographic Verification */}
       <section className="card">

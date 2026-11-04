@@ -261,8 +261,10 @@ export default function College({ vault: v, refresh }) {
               <span className="amber-text" style={{ fontSize: "22px" }}>Awaiting Start</span>
             ) : timeLeft > 0 ? (
               fmtCountdown(timeLeft)
+            ) : isUnlocked ? (
+              <span className="mint-text" style={{ fontSize: "22px" }}>UNLOCKED ✓</span>
             ) : (
-              "00:00:00"
+              <span className="amber-text" style={{ fontSize: "22px" }}>00:00:00 (LOCKED)</span>
             )}
           </div>
           <p className="muted small" style={{ margin: 0 }}>
@@ -270,8 +272,10 @@ export default function College({ vault: v, refresh }) {
               <span className="amber-text">Exam schedule awaiting start in Admin Portal.</span>
             ) : timeLeft > 0 ? (
               <>Scheduled time: <b>{fmtLocalTime(v.examTime)}</b></>
+            ) : isUnlocked ? (
+              <span className="mint-text">Quorum verified on Ethereum. Question paper ready for download.</span>
             ) : (
-              <span className="mint-text">Exam time reached. Ready for download.</span>
+              <span className="amber-text">Exam time reached. Awaiting key custodians to reveal shares.</span>
             )}
           </p>
         </div>

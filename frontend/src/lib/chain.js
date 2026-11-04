@@ -61,6 +61,7 @@ export function rebindContracts(newDep) {
   tokenRead = new Contract(newDep.accessToken, tokenAbi, readProvider);
   immutables = null;
   startTime = null;
+  chainClockOffset = 0;
   broadcastStateChange({ title: "Vault Reconnected", message: `Active vault at ${newDep.vault}` });
 }
 
@@ -74,7 +75,7 @@ if (typeof window !== "undefined") {
 // ------------------------------------------------------------------ state snapshot
 
 // Hardhat demos fast-forward time (evm_increaseTime), so the chain clock can be
-// ahead of the wall clock. We remember the largest gap seen and add it to Date.now().
+// ahead of the wall clock. We remember the node's offset and add it to Date.now().
 let chainClockOffset = 0;
 let immutables = null; // values that never change: read once
 let startTime = null; // timestamp of the deploy block, for the dial's progress ring
@@ -179,8 +180,19 @@ export async function loadVaultState() {
     revealed = { who: [...r.who], pieces: [...r.pieces] };
   }
 
-  const chainNow = Number(block.timestamp);
-  chainClockOffset = Math.max(chainClockOffset, chainNow - Date.now() / 1000);
+  try {
+    const offset = Number(await readProvider.send("evm_increaseTime", [0]));
+    const blockTime = Number(block.timestamp);
+    const estimated = Math.floor(Date.now() / 1000) + offset;
+    if (estimated < blockTime) {
+      chainClockOffset = blockTime - Math.floor(Date.now() / 1000);
+    } else {
+      chainClockOffset = offset;
+    }
+  } catch {
+    const chainNow = Number(block.timestamp);
+    chainClockOffset = chainNow - Math.floor(Date.now() / 1000);
+  }
 
   return {
     ...fixed,
@@ -315,8 +327,19 @@ export function useVaultState() {
 export function useChainNow() {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000 + chainClockOffset));
   useEffect(() => {
-    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000 + chainClockOffset)), 1000);
-    return () => clearInterval(id);
+    const update = () => setNow(Math.floor(Date.now() / 1000 + chainClockOffset));
+    const id = setInterval(update, 1000);
+    if (typeof window !== "undefined") {
+      window.addEventListener("examvault:refresh", update);
+      window.addEventListener("examvault:time-warp", update);
+    }
+    return () => {
+      clearInterval(id);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("examvault:refresh", update);
+        window.removeEventListener("examvault:time-warp", update);
+      }
+    };
   }, []);
   return now;
 }
@@ -428,17 +451,64 @@ export function friendlyError(err) {
 
 // ------------------------------------------------------------------ helpers for college project demo
 
-/** Advances the Hardhat node clock (for live viva testing without long waits). */
+/** Returns the estimated current timestamp on the blockchain (unix seconds) */
+export async function getChainTime() {
+  if (!readProvider) return Math.floor(Date.now() / 1000 + chainClockOffset);
+  try {
+    const [offsetRes, block] = await Promise.all([
+      readProvider.send("evm_increaseTime", [0]).catch(() => null),
+      readProvider.getBlock("latest").catch(() => null),
+    ]);
+    const blockTime = block ? Number(block.timestamp) : 0;
+    if (offsetRes !== null) {
+      const offset = Number(offsetRes);
+      chainClockOffset = offset;
+      const estimated = Math.floor(Date.now() / 1000) + offset;
+      return Math.max(blockTime, estimated);
+    }
+    const chainNow = blockTime || Math.floor(Date.now() / 1000 + chainClockOffset);
+    chainClockOffset = chainNow - Math.floor(Date.now() / 1000);
+    return chainNow;
+  } catch {
+    return Math.floor(Date.now() / 1000 + chainClockOffset);
+  }
+}
+
+/** Advances the Hardhat node clock by `seconds` and mines a block. */
 export async function fastForwardChain(seconds) {
   if (!readProvider) return;
   try {
     const s = Math.max(1, Math.floor(seconds));
     await readProvider.send("evm_increaseTime", [s]);
     await readProvider.send("evm_mine", []);
-    chainClockOffset += s;
+    try {
+      const offset = Number(await readProvider.send("evm_increaseTime", [0]));
+      chainClockOffset = offset;
+    } catch {
+      chainClockOffset += s;
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("examvault:time-warp", { detail: { seconds: s } }));
+    }
     broadcastToast("Chain Clock Advanced", `Blockchain time warped +${s}s on Ethereum Localnet`, "mint", "⚡");
+    broadcastStateChange();
   } catch (err) {
     console.warn("Fast-forward not supported on this chain/network:", err);
+  }
+}
+
+/** Ensures blockchain clock has reached `targetTime` (unix seconds). Only advances if chain time is behind. */
+export async function fastForwardToTime(targetTime) {
+  if (!readProvider) return;
+  const current = await getChainTime();
+  if (current < targetTime) {
+    const diff = Math.max(1, targetTime - current + 1);
+    await fastForwardChain(diff);
+  } else {
+    try {
+      await readProvider.send("evm_mine", []);
+      broadcastStateChange();
+    } catch { /* ignore */ }
   }
 }
 
@@ -459,9 +529,8 @@ export function loadStaffKey(staffIndex) {
 
 /**
  * Automates the blockchain sequence for an individual staff custodian submitting their key:
- * 1. Reveals this custodian's entropy seed.
- * 2. If 3 seeds are reached, resolves on-chain paper selection draw.
- * 3. Once paper is selected, reveals this custodian's share for the chosen paper,
+ * 1. Reveals this custodian's entropy seed if paper is not yet selected.
+ * 2. Once paper is selected, reveals this custodian's share for the chosen paper,
  *    and fulfills shares for any previously committed custodians whose keys are cached.
  */
 export async function submitStaffKeySequence(vault, signer, staffAddress, keyFile, onStatus) {
@@ -475,123 +544,111 @@ export async function submitStaffKeySequence(vault, signer, staffAddress, keyFil
   if (examTime === 0) {
     throw new Error("Exam countdown has not been scheduled yet. Please start it from the Central Admin Portal first.");
   }
-  const block = await readProvider.getBlock("latest");
-  const now = Number(block.timestamp);
-
-  if (now < examTime) {
+  const currentChainNow = await getChainTime();
+  if (currentChainNow < examTime) {
     onStatus?.("Advancing blockchain clock to exam deadline...");
-    const diff = examTime - now + 2;
-    await fastForwardChain(diff);
+    await fastForwardToTime(examTime + 2);
   }
 
   const c = vaultWrite(signer);
-
-  // 2. Reveal seed if not already revealed AND paper is not yet selected AND within seed window
+  const fixed = await loadImmutables();
   let isPaperSelected = await vault.paperSelected();
   let sInfo = await vault.getStaff(staffAddress);
-  const fixed = await loadImmutables();
-  const currentBlock = await readProvider.getBlock("latest");
-  const currentNow = Number(currentBlock.timestamp);
-  const seedDeadline = examTime + fixed.seedWindow;
 
-  if (!sInfo.seedRevealed && !isPaperSelected && currentNow < seedDeadline) {
-    onStatus?.(`Submitting entropy seed for Custodian #${staffIndex}...`);
-    const txSeed = await c.revealSeed(BigInt(keyFile.seed));
-    await txSeed.wait();
-    broadcastToast(
-      `Custodian #${staffIndex} Seed Registered`,
-      `Secret entropy seed confirmed on Ethereum block`,
-      "amber",
-      "🎲"
-    );
-  }
+  // 2. If paper is not yet selected, reveal seed
+  if (!isPaperSelected) {
+    const currentNow = await getChainTime();
+    const seedDeadline = examTime + fixed.seedWindow;
 
-  // 3. Check if paper can be selected (need >= 3 seeds)
-  isPaperSelected = await vault.paperSelected();
-  const seedsRevealed = Number(await vault.seedsRevealed());
-  const seedsCommitted = Number(await vault.seedsCommitted());
-
-  if (!isPaperSelected && seedsRevealed >= 3) {
-    onStatus?.("Threshold reached (3 seeds)! Selecting exam paper on-chain...");
-    if (seedsRevealed < seedsCommitted) {
-      const fixed = await loadImmutables();
-      const currentBlock = await readProvider.getBlock("latest");
-      const currentNow = Number(currentBlock.timestamp);
-      const seedDeadline = examTime + fixed.seedWindow;
-      if (currentNow < seedDeadline) {
-        onStatus?.("Advancing blockchain clock past seed window for consensus...");
-        await fastForwardChain(seedDeadline - currentNow + 2);
+    if (!sInfo.seedRevealed) {
+      if (currentNow >= seedDeadline) {
+        throw new Error(`The seed challenge window has expired (${fixed.seedWindow}s elapsed). Custodian #${staffIndex} cannot submit entropy seed after deadline.`);
       }
-    }
-    const txSelect = await c.selectPaper();
-    await txSelect.wait();
-    isPaperSelected = true;
-    const chosen = Number(await vault.selectedPaper());
-    broadcastToast(
-      "Consensus Resolved",
-      `Paper ${["A", "B", "C"][chosen]} selected on-chain by decentralized entropy draw!`,
-      "mint",
-      "🎲"
-    );
-  }
-
-  // 4. Reveal piece for this staff and any other previously committed staff if paper is selected
-  let quorumReached = false;
-  let chosenPaper = null;
-  if (isPaperSelected) {
-    chosenPaper = Number(await vault.selectedPaper());
-    const refreshedStaff = await vault.getStaff(staffAddress);
-    if (!refreshedStaff.pieceRevealed) {
-      onStatus?.(`Revealing key piece for selected Paper ${["A", "B", "C"][chosenPaper]}...`);
-      const piece = keyFile.pieces[chosenPaper];
-      const txPiece = await c.revealPiece(piece);
-      await txPiece.wait();
+      onStatus?.(`Submitting entropy seed for Custodian #${staffIndex}...`);
+      const txSeed = await c.revealSeed(BigInt(keyFile.seed));
+      await txSeed.wait();
       broadcastToast(
-        `Custodian #${staffIndex} Share Submitted`,
-        `32-byte Shamir share for Paper ${["A", "B", "C"][chosenPaper]} verified on-chain`,
-        "mint",
-        "🔐"
+        `Custodian #${staffIndex} Seed Registered`,
+        `Secret entropy seed confirmed on Ethereum block`,
+        "amber",
+        "🎲"
       );
     }
 
-    // Auto-reveal pieces for any other custodians who already submitted their seeds and have saved keys
-    for (let i = 0; i < deployment.accounts.staff.length; i++) {
-      const otherAddr = deployment.accounts.staff[i];
-      if (otherAddr.toLowerCase() === staffAddress.toLowerCase()) continue;
-      const otherStaff = await vault.getStaff(otherAddr);
-      if (otherStaff.seedRevealed && !otherStaff.pieceRevealed) {
-        const stored = loadStaffKey(i + 1) || deployment.preparedSecrets?.[i];
-        if (stored?.pieces?.[chosenPaper]) {
-          onStatus?.(`Submitting cached key piece for Custodian #${i + 1}...`);
-          try {
-            const otherSigner = await readProvider.getSigner(otherAddr);
-            const otherVault = vaultWrite(otherSigner);
-            const otherTx = await otherVault.revealPiece(stored.pieces[chosenPaper]);
-            await otherTx.wait();
-          } catch (pieceErr) {
-            console.warn(`Failed auto-revealing piece for staff ${i + 1}:`, pieceErr);
-          }
+    const seedsRevealed = Number(await vault.seedsRevealed());
+    onStatus?.("Entropy seed successfully registered!");
+    broadcastStateChange();
+    return {
+      seedRevealed: true,
+      paperSelected: false,
+      selectedPaper: null,
+      quorumReached: false,
+      seedsRevealed,
+    };
+  }
+
+  // 3. Paper is selected: reveal piece for this staff and any cached pieces
+  let quorumReached = false;
+  const chosenPaper = Number(await vault.selectedPaper());
+  const currentNow = await getChainTime();
+  const selectedAt = Number(await vault.selectedAt());
+  const revealDeadline = selectedAt + fixed.revealWindow;
+
+  const refreshedStaff = await vault.getStaff(staffAddress);
+  if (!refreshedStaff.pieceRevealed) {
+    if (currentNow >= revealDeadline) {
+      throw new Error(`The key reveal window has expired (${fixed.revealWindow}s elapsed). Key share cannot be submitted after deadline.`);
+    }
+    onStatus?.(`Revealing key piece for selected Paper ${["A", "B", "C"][chosenPaper]}...`);
+    const piece = keyFile.pieces[chosenPaper];
+    const txPiece = await c.revealPiece(piece);
+    await txPiece.wait();
+    broadcastToast(
+      `Custodian #${staffIndex} Share Submitted`,
+      `32-byte Shamir share for Paper ${["A", "B", "C"][chosenPaper]} verified on-chain`,
+      "mint",
+      "🔐"
+    );
+  }
+
+  // Auto-reveal pieces for any other custodians who already submitted their seeds and have saved keys
+  for (let i = 0; i < deployment.accounts.staff.length; i++) {
+    const otherAddr = deployment.accounts.staff[i];
+    if (otherAddr.toLowerCase() === staffAddress.toLowerCase()) continue;
+    const otherStaff = await vault.getStaff(otherAddr);
+    if (otherStaff.seedRevealed && !otherStaff.pieceRevealed) {
+      const stored = deployment.preparedSecrets?.[i] || loadStaffKey(i + 1);
+      if (stored?.pieces?.[chosenPaper]) {
+        onStatus?.(`Submitting cached key piece for Custodian #${i + 1}...`);
+        try {
+          const otherSigner = await readProvider.getSigner(otherAddr);
+          const otherVault = vaultWrite(otherSigner);
+          const otherTx = await otherVault.revealPiece(stored.pieces[chosenPaper]);
+          await otherTx.wait();
+        } catch (pieceErr) {
+          console.warn(`Failed auto-revealing piece for staff ${i + 1}:`, pieceErr);
         }
       }
     }
-
-    const totalRevealed = Number(await vault.piecesRevealed());
-    if (totalRevealed >= 3) {
-      quorumReached = true;
-      broadcastToast(
-        "3-of-5 Quorum Reached!",
-        `Exam Paper ${["A", "B", "C"][chosenPaper]} is UNLOCKED for exam centres!`,
-        "mint",
-        "🎉"
-      );
-    }
   }
 
-  onStatus?.("Key successfully processed!");
+  const totalRevealed = Number(await vault.piecesRevealed());
+  if (totalRevealed >= 3) {
+    quorumReached = true;
+    broadcastToast(
+      "3-of-5 Quorum Reached!",
+      `Exam Paper ${["A", "B", "C"][chosenPaper]} is UNLOCKED for exam centres!`,
+      "mint",
+      "🎉"
+    );
+  }
+
+  onStatus?.("Key piece successfully processed!");
   broadcastStateChange();
   return {
     seedRevealed: true,
-    paperSelected: isPaperSelected,
+    pieceRevealed: true,
+    paperSelected: true,
     selectedPaper: chosenPaper,
     quorumReached,
   };
@@ -624,23 +681,21 @@ export async function resolvePaperSelection(onStatus) {
     throw new Error(`Need at least 3 custodian seeds before paper selection (currently ${seedsRevealed}/3).`);
   }
 
-  const block = await readProvider.getBlock("latest");
-  const now = Number(block.timestamp);
+  const currentNow = await getChainTime();
 
-  if (examTime > 0 && now < examTime) {
+  if (examTime > 0 && currentNow < examTime) {
     onStatus?.("Advancing chain time to exam deadline...");
-    await fastForwardChain(examTime - now + 2);
+    await fastForwardToTime(examTime + 2);
   }
 
   // If not all committed seeds are in (e.g. 3 revealed out of 5 committed),
   // ExamVault.selectPaper() requires block.timestamp >= examTime + seedWindow.
   if (seedsRevealed < seedsCommitted) {
-    const latestBlock = await readProvider.getBlock("latest");
-    const currentNow = Number(latestBlock.timestamp);
+    const currentNow2 = await getChainTime();
     const deadline = examTime + seedWindow;
-    if (currentNow < deadline) {
+    if (currentNow2 < deadline) {
       onStatus?.("Advancing blockchain clock past seed reveal window...");
-      await fastForwardChain(deadline - currentNow + 2);
+      await fastForwardToTime(deadline + 2);
     }
   }
 
@@ -667,11 +722,10 @@ export async function fillSeedsAndSelect(onStatus) {
     throw new Error("Exam countdown has not been started yet.");
   }
 
-  const block = await readProvider.getBlock("latest");
-  const now = Number(block.timestamp);
-  if (now < examTime) {
+  const currentNow = await getChainTime();
+  if (currentNow < examTime) {
     onStatus?.("Advancing chain clock to exam deadline...");
-    await fastForwardChain(examTime - now + 2);
+    await fastForwardToTime(examTime + 2);
   }
 
   let secrets = deployment.preparedSecrets;
@@ -804,13 +858,7 @@ export async function startExamCountdown(durationSeconds = 120, onStatus) {
   const paperHashes = papers.map((p) => p.hash);
   const paperCids = papers.map((p) => p.cid);
 
-  const block = await readProvider.getBlock("latest");
-  let currentChainTime = Number(block.timestamp);
-  try {
-    const offset = Number(await readProvider.send("evm_increaseTime", [0]));
-    currentChainTime = Math.max(currentChainTime, Math.floor(Date.now() / 1000) + offset);
-  } catch { /* use block.timestamp */ }
-  const chainNow = Math.max(Number(block.timestamp), currentChainTime);
+  const chainNow = await getChainTime();
   const examTime = BigInt(chainNow + Number(durationSeconds));
 
   onStatus?.(`Admin locking exam deadline (now + ${durationSeconds}s) on Ethereum...`);
@@ -887,4 +935,88 @@ export async function penaliseStaff(staffAddress, onStatus) {
   );
   broadcastStateChange();
 }
+
+/**
+ * Submits cryptographic fingerprints for a single staff custodian during the commit phase:
+ * 1. Computes 3 piece commitments for Papers A, B, C: keccak256(vault, staff, paper, piece)
+ * 2. Computes seed commitment for the entropy seed: keccak256(vault, staff, seed)
+ * 3. Broadcasts commitPieces() and commitSeed() to ExamVault.
+ */
+export async function commitStaffFingerprints(signer, staffAddr, keyFile, onStatus) {
+  if (!keyFile) throw new Error("No key file loaded.");
+  if (!deployment?.vault) throw new Error("Deployment vault address missing.");
+
+  onStatus?.("Computing Keccak-256 fingerprints for candidate paper shares...");
+  const commits = keyFile.pieces.map((piece, paperIdx) =>
+    pieceCommitment(deployment.vault, staffAddr, paperIdx, piece)
+  );
+
+  onStatus?.("Computing Keccak-256 fingerprint for entropy seed...");
+  const seedCom = seedCommitment(deployment.vault, staffAddr, BigInt(keyFile.seed));
+
+  const staffVault = vaultWrite(signer);
+
+  onStatus?.("Broadcasting commitPieces(fingerprints) to ExamVault...");
+  const txPiece = await staffVault.commitPieces(commits);
+  await txPiece.wait();
+
+  onStatus?.("Broadcasting commitSeed(fingerprint) to ExamVault...");
+  const txSeed = await staffVault.commitSeed(seedCom);
+  await txSeed.wait();
+
+  broadcastToast(
+    "Fingerprints Committed",
+    `Staff #${keyFile.staffIndex || ""} fingerprints sealed in ExamVault storage.`,
+    "mint",
+    "🔒"
+  );
+  broadcastStateChange();
+
+  return { commits, seedCom };
+}
+
+/**
+ * Calls postpone() on ExamVault if the exam cannot be unlocked (duties are over and threshold not met).
+ */
+export async function postponeExam(onStatus) {
+  if (!deployment) throw new Error("No deployment configuration found.");
+  onStatus?.("Broadcasting postpone() transaction to ExamVault...");
+  const adminSigner = await readProvider.getSigner(deployment.accounts.admin);
+  const vault = vaultWrite(adminSigner);
+  const tx = await vault.postpone();
+  await tx.wait();
+  broadcastToast("Exam Postponed On-Chain", "Smart contract has marked exam as officially aborted", "red", "🛑");
+  broadcastStateChange();
+}
+
+/**
+ * Slashes all staff members who missed a duty once dutiesOver() is true.
+ */
+export async function slashDelinquentCustodians(onStatus) {
+  if (!deployment) throw new Error("No deployment configuration found.");
+  const isOver = await vaultRead.dutiesOver();
+  if (!isOver) {
+    throw new Error("Duties are not over yet. Slashes can only be executed after reveal windows close.");
+  }
+  const adminSigner = await readProvider.getSigner(deployment.accounts.admin);
+  const vault = vaultWrite(adminSigner);
+
+  let slashedCount = 0;
+  for (let i = 0; i < deployment.accounts.staff.length; i++) {
+    const staffAddr = deployment.accounts.staff[i];
+    const s = await vaultRead.getStaff(staffAddr);
+    const missed = await vaultRead.missedDuty(staffAddr);
+    if (missed && !s.penalised) {
+      onStatus?.(`Slashing 50% deposit for delinquent Custodian #${i + 1}...`);
+      const tx = await vault.penalise(staffAddr);
+      await tx.wait();
+      slashedCount++;
+    }
+  }
+
+  broadcastToast("Slashing Settlement Complete", `Slashed 50% deposit for ${slashedCount} delinquent custodian(s)`, "red", "🚨");
+  broadcastStateChange();
+  return slashedCount;
+}
+
 
