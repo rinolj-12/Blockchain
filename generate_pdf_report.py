@@ -1,794 +1,575 @@
 #!/usr/bin/env python3
 """
 Generates the comprehensive PDF demonstration report for Blockchain Exam Vault
-with embedded screenshots, technical diagrams, and audit records.
+with real, full-resolution frontend UI screenshots embedded via Base64.
 """
 
 import os
+import base64
 import subprocess
 
-HTML_CONTENT = """<!DOCTYPE html>
+def get_b64(filename):
+    path = os.path.join("docs", "screenshots", filename)
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+def build_html():
+    img_admin_locked = get_b64("01_admin_locked_countdown.png")
+    img_staff_locked = get_b64("02_staff_locked.png")
+    img_college_locked = get_b64("03_college_locked.png")
+    img_admin_unlocked = get_b64("04_admin_unlocked.png")
+    img_college_unlocked = get_b64("05_college_unlocked.png")
+    img_staff1_confirmed = get_b64("06_staff1_confirmed.png")
+    img_staff4_slashed = get_b64("07_staff4_slashed.png")
+    img_genesis = get_b64("08_genesis_setup.png")
+
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Blockchain Exam Vault — System Operation & Technical Demonstration Report</title>
+<title>Blockchain Exam Vault — Frontend UI Operational Demonstration</title>
 <style>
-  @page {
+  @page {{
     size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
-  }
+    margin: 8mm 10mm 8mm 10mm;
+  }}
 
-  * {
+  * {{
     box-sizing: border-box;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-  }
+  }}
 
-  body {
+  body {{
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #1e293b;
+    color: #0f172a;
     background: #ffffff;
-    line-height: 1.45;
-    font-size: 9pt;
+    line-height: 1.4;
+    font-size: 8.5pt;
     margin: 0;
     padding: 0;
-  }
+  }}
 
-  .page {
+  .page {{
     page-break-after: always;
-    height: 275mm;
-    max-height: 275mm;
+    height: 280mm;
+    max-height: 280mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    position: relative;
     padding: 0;
-  }
+  }}
 
-  .page:last-child {
+  .page:last-child {{
     page-break-after: avoid;
-  }
+  }}
 
   /* Header banner */
-  .header-bar {
+  .header-bar {{
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #0f172a;
-    padding-bottom: 6px;
-    margin-bottom: 10px;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
     flex-shrink: 0;
-  }
-  .header-brand {
+  }}
+  .header-brand {{
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 10pt;
+    gap: 6px;
+    font-size: 9.5pt;
     font-weight: 700;
     color: #0f172a;
     letter-spacing: -0.2px;
-  }
-  .header-meta {
-    font-size: 8pt;
+  }}
+  .header-meta {{
+    font-size: 7.5pt;
     color: #64748b;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-
-  /* Content area */
-  .page-content {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-  }
+  }}
 
   /* Footer */
-  .footer-bar {
-    padding-top: 6px;
-    border-top: 1px solid #e2e8f0;
+  .footer-bar {{
+    padding-top: 4px;
+    border-top: 1px solid #cbd5e1;
     display: flex;
     justify-content: space-between;
-    font-size: 7.5pt;
-    color: #94a3b8;
+    font-size: 7pt;
+    color: #64748b;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     flex-shrink: 0;
-  }
+  }}
 
   /* Headings */
-  h1 { font-size: 19pt; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; letter-spacing: -0.5px; }
-  h2 { font-size: 12pt; font-weight: 700; color: #0f172a; margin: 8px 0 6px 0; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 3px; }
-  h3 { font-size: 9.5pt; font-weight: 700; color: #1e293b; margin: 4px 0 3px 0; }
-  p { margin: 0 0 6px 0; }
+  h1 {{ font-size: 16pt; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }}
+  h2 {{ font-size: 11pt; font-weight: 700; color: #0f172a; margin: 0 0 3px 0; }}
+  p {{ margin: 0 0 6px 0; }}
 
-  /* Badges & Tags */
-  .badge {
+  /* Badges */
+  .badge {{
     display: inline-block;
-    font-size: 7pt;
+    font-size: 6.5pt;
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 4px;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.3px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  .badge-mint { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-  .badge-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
-  .badge-amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-  .badge-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+  }}
+  .badge-mint {{ background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }}
+  .badge-amber {{ background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }}
+  .badge-red {{ background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }}
+  .badge-blue {{ background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }}
 
-  /* Cards & Callouts */
-  .card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin-bottom: 8px;
-  }
-  .card-highlight {
-    background: #f0fdf4;
-    border-color: #86efac;
-  }
-
-  /* Figures & Screenshots */
-  .figure-container {
-    margin: 6px 0 8px 0;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+  /* Screenshot hero container */
+  .screenshot-card {{
+    border: 1.5px solid #0f172a;
+    border-radius: 8px;
     overflow: hidden;
-    background: #0f172a;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  }
-  .figure-img {
-    width: 100%;
-    max-height: 125mm;
-    object-fit: cover;
-    object-position: top;
-    display: block;
-  }
-  .figure-caption {
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    padding: 4px 10px;
-    font-size: 7.5pt;
-    color: #475569;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .figure-caption b {
-    color: #0f172a;
-  }
-
-  /* Tables */
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 7.5pt;
+    background: #0c0f17;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
     margin: 6px 0 8px 0;
-  }
-  th {
-    background: #0f172a;
-    color: #ffffff;
-    text-align: left;
-    padding: 5px 8px;
-    font-weight: 600;
-  }
-  td {
-    padding: 4px 8px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  tr:nth-child(even) td {
-    background: #f8fafc;
-  }
-  .mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 7.5pt;
-  }
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }}
+  .screenshot-img {{
+    width: 100%;
+    height: 100%;
+    max-height: 178mm;
+    object-fit: contain;
+    display: block;
+    background: #0c0f17;
+  }}
 
-  /* Grid Layouts */
-  .grid-2 {
+  /* Explanatory callouts below screenshot */
+  .callout-grid {{
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .grid-3 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
-  }
-
-  /* Cover elements */
-  .cover-title-area {
-    margin: 12mm 0 8mm 0;
-    border-left: 5px solid #0284c7;
-    padding-left: 16px;
-  }
-  .subtitle {
-    font-size: 11pt;
-    color: #475569;
-    font-weight: 500;
-    margin-top: 6px;
-    line-height: 1.4;
-  }
-  .meta-box {
+    margin-bottom: 4px;
+    flex-shrink: 0;
+  }}
+  .callout-item {{
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    padding: 12px 14px;
-    margin: 8mm 0;
-  }
+    padding: 6px 8px;
+  }}
+  .callout-title {{
+    font-weight: 700;
+    font-size: 7.5pt;
+    color: #0f172a;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }}
+  .callout-desc {{
+    font-size: 7pt;
+    color: #475569;
+    line-height: 1.35;
+    margin: 0;
+  }}
+  .mono {{
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 6.5pt;
+  }}
 </style>
 </head>
 <body>
 
-  <!-- ================================================================= PAGE 1 ================================================================= -->
+  <!-- ================================= PAGE 1: COVER & OVERVIEW ================================= -->
   <div class="page">
     <div class="header-bar">
       <div class="header-brand">🔒 EXAMVAULT PROTOCOL · ZERO-TRUST ARCHITECTURE</div>
-      <div class="header-meta">TECHNICAL OPERATIONAL REPORT · v1.0.0</div>
+      <div class="header-meta">UI OPERATIONAL REFERENCE · v1.0.0</div>
     </div>
 
-    <div class="page-content">
-      <div class="cover-title-area">
-        <div style="font-size: 8.5pt; font-weight: 700; color: #0284c7; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 4px;">
-          Cryptographic Operational Verification
-        </div>
-        <h1>Blockchain Exam Vault</h1>
-        <div class="subtitle">
-          Decentralized, Leak-Proof Question Paper Distribution Platform Powered by Ethereum Smart Contracts, 3-of-5 Shamir Secret Sharing, AES-256-GCM, and ERC-5192 Soulbound Access Tokens
+    <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+      <div style="border-left: 6px solid #0284c7; padding-left: 18px; margin-bottom: 16px;">
+        <span class="badge badge-blue" style="margin-bottom: 6px;">Frontend Interface Verification</span>
+        <h1 style="font-size: 22pt; margin: 4px 0 8px 0;">Blockchain Exam Vault</h1>
+        <div style="font-size: 11pt; color: #475569; font-weight: 500; line-height: 1.4;">
+          Visual Walkthrough of the Production Web3 User Interface Across All Examination Lifecycles
         </div>
       </div>
 
-      <div class="meta-box">
-        <div class="grid-2">
-          <div>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>System Verification Target:</b> Ethereum Localnet (Chain ID 31337)</p>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>Smart Contract:</b> <span class="mono">ExamVault.sol</span> (0x4c58...8029)</p>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>Access Token:</b> <span class="mono">CollegeAccessToken.sol</span> (0x1007...844b)</p>
-            <p style="margin-bottom: 0; font-size: 8.5pt;"><b>Hardhat Automated Tests:</b> <span class="badge badge-mint">89 of 89 Passed (100%)</span></p>
-          </div>
-          <div>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>Cryptographic Scheme:</b> Shamir Threshold (k=3, n=5) over GF(256)</p>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>Symmetric Encryption:</b> AES-256-GCM (Authenticated Envelope)</p>
-            <p style="margin-bottom: 3px; font-size: 8.5pt;"><b>Integrity Fingerprinting:</b> Keccak-256 & IPFS CIDv1 Content Addressing</p>
-            <p style="margin-bottom: 0; font-size: 8.5pt;"><b>Consensus Mechanism:</b> Multi-party XOR seed commit-reveal</p>
-          </div>
-        </div>
-      </div>
-
-      <h2>1. Executive Summary & Problem Addressed</h2>
-      <p>
-        In traditional educational examination systems, centralized question paper storage and premature distribution create single points of failure. Insider leakage, bribed custodians, and interception during transit compromise nationwide exams.
-      </p>
-      <p>
-        <b>Blockchain Exam Vault</b> eliminates these failure modes using zero-trust cryptographic guarantees:
-      </p>
-      <ul style="margin: 0 0 8px 0; padding-left: 20px; font-size: 8.5pt;">
-        <li><b>No Single Custodian Can Leak:</b> The paper encryption key is divided into 5 polynomial shares. Any 2 colluding custodians possess strictly 0 bits of information regarding the AES key. At least 3 independent keyholders must cooperate.</li>
-        <li><b>Multi-Paper Uncertainty:</b> Custodians commit key shares for 3 candidate papers (A, B, and C) before the exam. Neither staff nor colleges know which paper will be selected until the exam deadline.</li>
-        <li><b>Unbiased Random Selection:</b> Paper choice is deterministically computed on-chain via the Keccak-256 hash of XOR'd secret entropy seeds submitted by the custodians at deadline.</li>
-        <li><b>Economic Collateral & Automatic Slashing:</b> Each keyholder deposits a 1.0 ETH stake. Failure to submit required seeds or key shares triggers on-chain slashing of 50% (0.50 ETH penalty).</li>
-        <li><b>Non-Transferable Venue Identity:</b> Question paper download is gated by an ERC-5192 Soulbound Token permanently bound to the authorized college exam centre wallet.</li>
-      </ul>
-    </div>
-
-    <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 1 OF 8</span>
-    </div>
-  </div>
-
-  <!-- ================================================================= PAGE 2 ================================================================= -->
-  <div class="page">
-    <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · GENESIS AUDIT & SETUP</div>
-      <div class="header-meta">PHASE 1: STAKING & IMMUTABLE COMMITMENTS</div>
-    </div>
-
-    <div class="page-content">
-      <h2>2. Phase 1: Genesis Ledger Setup & Economic Staking</h2>
-      <p>
-        Before the examination countdown begins, the University Administrator deploys the vault contracts, registers the 5 staff custodians, registers the college examination centres, and stakes economic deposits.
-      </p>
-
-      <div class="figure-container">
-        <img src="docs/screenshots/08_genesis_setup.png" class="figure-img" style="max-height: 100mm;" alt="Genesis Ledger Audit">
-        <div class="figure-caption">
-          <span><b>Figure 1:</b> Genesis Ledger Audit Screen (<span class="mono">#/setup</span>) displaying on-chain transaction history from Block #1 through #14.</span>
-          <span class="badge badge-mint">Genesis Verified</span>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <h3>Cryptographic Staking (Skin in the Game)</h3>
-          <p style="font-size: 8pt; margin: 0;">
-            Each of the 5 custodians deposits <b>1.00 ETH</b> into the smart contract escrow. This creates an unshakeable economic incentive: custodians who fulfill their reveal duties retain their full 1.00 ETH deposit. Delinquent custodians forfeit 0.50 ETH to the treasury.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Two-Phase Commit-Reveal Scheme</h3>
-          <p style="font-size: 8pt; margin: 0;">
-            Custodians pre-compute Keccak-256 fingerprints of their candidate shares:
-            <br><span class="mono" style="font-size: 7pt;">H_piece = keccak256(vault, staff, paperIdx, piece)</span>
-            <br><span class="mono" style="font-size: 7pt;">H_seed = keccak256(vault, staff, seed)</span>
-            <br>Hashes are permanently sealed in smart contract storage prior to exam start.
-          </p>
-        </div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Block #</th>
-            <th>Transaction Description</th>
-            <th>Smart Contract Function</th>
-            <th>Cryptographic State Change</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="mono">Block #1</td>
-            <td>ExamVault Deployment</td>
-            <td class="mono">constructor(minStake=0.5 ETH, seed=120s, rev=600s)</td>
-            <td>Escrow and state machine initialized</td>
-          </tr>
-          <tr>
-            <td class="mono">Block #2</td>
-            <td>Access Token Deployment</td>
-            <td class="mono">CollegeAccessToken(vaultAddr)</td>
-            <td>ERC-5192 Soulbound contract deployed</td>
-          </tr>
-          <tr>
-            <td class="mono">Blocks #3–7</td>
-            <td>Custodian Staking (x5)</td>
-            <td class="mono">stake() { value: 1.0 ether }</td>
-            <td>5.0 ETH total collateral deposited</td>
-          </tr>
-          <tr>
-            <td class="mono">Blocks #8–12</td>
-            <td>Fingerprint Commitments (x5)</td>
-            <td class="mono">commitPieces(hashes), commitSeed(hash)</td>
-            <td>15 piece hashes + 5 seed hashes sealed</td>
-          </tr>
-          <tr>
-            <td class="mono">Block #13</td>
-            <td>Exam Lock & Paper Hashes</td>
-            <td class="mono">setExam(examTime, paperHashes, cids)</td>
-            <td>Exam parameters permanently locked</td>
-          </tr>
-          <tr>
-            <td class="mono">Block #14</td>
-            <td>Soulbound Token Mint</td>
-            <td class="mono">mintAccessToken(collegeAddr)</td>
-            <td>Token #1 minted to authorized venue</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 2 OF 8</span>
-    </div>
-  </div>
-
-  <!-- ================================================================= PAGE 3 ================================================================= -->
-  <div class="page">
-    <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · TIME LOCK SYNCHRONIZATION</div>
-      <div class="header-meta">PHASE 2: PRE-EXAM DEADLINE COUNTDOWN</div>
-    </div>
-
-    <div class="page-content">
-      <h2>3. Phase 2: Time-Locking & Clock Synchronization</h2>
-      <p>
-        Once <span class="mono">setExam()</span> is mined, the examination deadline is immutable. The smart contract acts as an autonomous temporal lock: any attempts to submit entropy seeds or decrypt papers prior to the deadline are rejected at the EVM level with custom error <span class="mono">TooEarly()</span>.
-      </p>
-
-      <div class="figure-container">
-        <img src="docs/screenshots/01_admin_locked_countdown.png" class="figure-img" style="max-height: 105mm;" alt="Admin Portal Locked Countdown">
-        <div class="figure-caption">
-          <span><b>Figure 2:</b> Administrator Portal (<span class="mono">#/admin</span>) during Phase 1 locked countdown with active clock sync and telemetry.</span>
-          <span class="badge badge-amber">Locked Countdown</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Monotonic Chain Clock Synchronization (<span class="mono">getChainTime</span> & <span class="mono">useChainNow</span>)</h3>
-        <p style="font-size: 8pt; margin: 0 0 4px 0;">
-          To ensure bulletproof reliability between Ethereum block timestamps and browser countdowns, the frontend implements dynamic clock reconciliation. The chain time query calculates:
+      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+        <h2 style="font-size: 11pt; margin-bottom: 6px;">Portal User Interface Architecture</h2>
+        <p style="font-size: 8.5pt; color: #334155;">
+          This document presents authentic, un-cropped screenshots of the active React/Vite decentralized application connected to the local Ethereum node. The platform provides four specialized role-based views:
         </p>
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; margin: 4px 0; font-family: ui-monospace, monospace; font-size: 7.5pt;">
-          chainClockOffset = max(latestBlock.timestamp, Date.now() / 1000 + nodeTimeOffset);
-        </div>
-        <p style="font-size: 8pt; margin: 0;">
-          Browser windows react instantaneously to block mining and fast-forward warps through custom window events (<span class="mono">examvault:time-warp</span>), eliminating countdown drift and timing bugs.
-        </p>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <h3>Immutable Paper Fingerprints</h3>
-          <p style="font-size: 8pt; margin: 0;">
-            Papers A, B, and C are stored on IPFS. The smart contract holds their Keccak-256 hashes:
-            <br>• Paper A: <span class="mono" style="font-size: 7pt;">0x1d6c773efc6990eb...</span>
-            <br>• Paper B: <span class="mono" style="font-size: 7pt;">0x335421b1fd5b8dfd...</span>
-            <br>• Paper C: <span class="mono" style="font-size: 7pt;">0x07a581060e373a32...</span>
-          </p>
-        </div>
-        <div class="card">
-          <h3>Custodian Commit Status</h3>
-          <p style="font-size: 8pt; margin: 0;">
-            All 5 custodians have verified on-chain commitments. The interface displays live confirmation pills indicating:
-            <br>• 5/5 Seed Fingerprints Sealed
-            <br>• 15/15 Paper Share Fingerprints Sealed
-            <br>• 5.00 ETH Total Stake Collateral Locked
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 3 OF 8</span>
-    </div>
-  </div>
-
-  <!-- ================================================================= PAGE 4 ================================================================= -->
-  <div class="page">
-    <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · ACCESS CONTROL GUARDS</div>
-      <div class="header-meta">PRE-DEADLINE ENFORCEMENT & RESTRICTIONS</div>
-    </div>
-
-    <div class="page-content">
-      <h2>4. Pre-Deadline Guards: Custodians & Exam Centres</h2>
-      <p>
-        During the locked phase, both key custodians and examination centres are strictly restricted by smart contract modifier assertions.
-      </p>
-
-      <div class="grid-2">
-        <div>
-          <div class="figure-container">
-            <img src="docs/screenshots/02_staff_locked.png" class="figure-img" style="max-height: 95mm;" alt="Staff Portal Locked">
-            <div class="figure-caption">
-              <span><b>Figure 3:</b> Custodian 1 Screen (<span class="mono">#/staff/1</span>) — Locked until deadline.</span>
-              <span class="badge badge-amber">Locked</span>
-            </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+            <b style="color: #0284c7;">1. Genesis Audit Portal (<span class="mono">#/setup</span>)</b>
+            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Inspects genesis smart contract deployments, staff registration, collateral staking, and sealed fingerprint commits.</p>
           </div>
-          <div class="card" style="font-size: 8pt;">
-            <b>Custodian Interface Controls:</b>
-            <br>The custodian portal verifies that the user's secret key file (<span class="mono">staff-1.json</span>) matches the on-chain commit hash. Seed submission buttons are disabled until <span class="mono">block.timestamp >= examTime</span>.
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+            <b style="color: #0284c7;">2. Central Administrator Portal (<span class="mono">#/admin</span>)</b>
+            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Monitors live countdown, quorum progress dial, fast-forward testing tools, paper selection, and delinquency slashing.</p>
           </div>
-        </div>
-        <div>
-          <div class="figure-container">
-            <img src="docs/screenshots/03_college_locked.png" class="figure-img" style="max-height: 95mm;" alt="College Portal Locked">
-            <div class="figure-caption">
-              <span><b>Figure 4:</b> Exam Centre Screen (<span class="mono">#/college</span>) — Download disabled.</span>
-              <span class="badge badge-amber">Locked</span>
-            </div>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+            <b style="color: #0284c7;">3. Key Custodians Portal (<span class="mono">#/staff/1..5</span>)</b>
+            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Allows each of the 5 keyholders to submit confidential entropy seeds, reveal Shamir shares, and safeguard their 1.00 ETH deposit.</p>
           </div>
-          <div class="card" style="font-size: 8pt;">
-            <b>Exam Centre Access Controls:</b>
-            <br>The college holds Soulbound Token #1. Even though authorized, the Download button is completely locked. Calling <span class="mono">logDownload()</span> early reverts with <span class="mono">PaperLocked()</span>.
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+            <b style="color: #0284c7;">4. Exam Centre & Hall Portal (<span class="mono">#/college</span>)</b>
+            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Gated by ERC-5192 Soulbound Token #1. Decrypts the official paper in-memory once 3 custodian shares are confirmed on-chain.</p>
           </div>
         </div>
       </div>
 
-      <div class="card card-highlight" style="margin-top: 6px;">
-        <h3 style="color: #065f46; margin-top: 0;">🛡️ Cryptographic Principle: Zero Pre-Exam Knowledge</h3>
-        <p style="font-size: 8pt; margin: 0;">
-          Because Shamir's Secret Sharing threshold is set to $k=3$ out of $n=5$ custodians over Galois Field $GF(256)$, any unauthorized interception or collusion of 1 or 2 custodians yields <b>strictly zero mathematical advantage</b> in determining the AES key. The unrevealed key pieces act as true one-time pads.
+      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
+        <h3 style="color: #065f46; margin: 0 0 4px 0; font-size: 9pt;">System Test Status: 100% Verified</h3>
+        <p style="font-size: 8pt; color: #166534; margin: 0;">
+          All 89 Hardhat automated test suites passed. The UI demonstrates real-time clock synchronization, anti-tamper rejection, multi-party entropy selection, and automated economic slashing.
         </p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 4 OF 8</span>
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 1 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================================================= PAGE 5 ================================================================= -->
+  <!-- ================================= PAGE 2: GENESIS SETUP UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · SEED QUORUM & RANDOM SELECTION</div>
-      <div class="header-meta">PHASE 3: UNBIASED MULTI-PARTY PAPER DRAW</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · GENESIS AUDIT LEDGER</div>
+      <div class="header-meta">SCREEN 1: DEPLOYMENT & STAKING AUDIT</div>
     </div>
 
-    <div class="page-content">
-      <h2>5. Phase 3: Entropy Reveal & Pseudo-Random Paper Selection</h2>
-      <p>
-        At the exam deadline, Custodians 1, 2, and 3 reveal their secret 256-bit entropy seeds. The smart contract verifies each revealed seed against its sealed hash using <span class="mono">keccak256(vault, staff, seed) == committedHash</span>.
-      </p>
-
-      <div class="figure-container">
-        <img src="docs/screenshots/04_admin_unlocked.png" class="figure-img" style="max-height: 105mm;" alt="Admin Portal Unlocked">
-        <div class="figure-caption">
-          <span><b>Figure 5:</b> Administrator Portal (<span class="mono">#/admin</span>) showing Phase 3 Unlocked state, Paper B selected, and quorum reached.</span>
-          <span class="badge badge-mint">Paper B Chosen</span>
-        </div>
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Genesis Audit Portal (<span class="mono">#/setup</span>)</h2>
+        <span class="badge badge-mint">Genesis Ledger Active</span>
       </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Full blockchain transaction ledger from Block #1 through #14 showing smart contract deployments, custodian registrations, 1.00 ETH deposit staking, access token minting, and sealed fingerprint commits.
+      </p>
+    </div>
 
-      <div class="grid-2">
-        <div class="card">
-          <h3>Mathematical Paper Selection Algorithm</h3>
-          <p style="font-size: 8pt; margin: 0 0 4px 0;">
-            When the seed window expires or all seeds arrive, <span class="mono">selectPaper()</span> computes the paper index by XOR-combining all valid revealed seeds:
-          </p>
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px 8px; margin: 4px 0; font-family: ui-monospace, monospace; font-size: 7.5pt;">
-            combinedSeed = seed_1 ^ seed_2 ^ ... ^ seed_k;<br>
-            selectedPaper = uint8(uint256(keccak256(abi.encodePacked(combinedSeed))) % 3);
-          </div>
-          <p style="font-size: 8pt; margin: 0;">
-            In this execution, the algorithm selected <b>Paper B</b>. Only Paper B's pieces can now be accepted.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Unbiasable Randomness Guarantee</h3>
-          <p style="font-size: 8pt; margin: 0;">
-            Even if 2 custodians are malicious and wait to reveal their seeds last, they cannot manipulate the outcome. The seed challenge window forces seed reveals to conclude <i>before</i> the result is evaluated, preventing selective withholding attacks.
-          </p>
-        </div>
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_genesis}" class="screenshot-img" alt="Genesis Setup Screen">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🏛️ Contract Deployment</div>
+        <p class="callout-desc">Shows <span class="mono">ExamVault.sol</span> deployed at Block #1 with 0.5 ETH minimum stake, 120s seed window, and 600s reveal window.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">💰 5.0 ETH Collateral Escrow</div>
+        <p class="callout-desc">Blocks #3–#7 verify that all 5 custodians deposited 1.00 ETH each, securing their commitment to submit timely key shares.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🔒 Soulbound Authorization</div>
+        <p class="callout-desc">Block #14 logs the minting of ERC-5192 Soulbound Token #1 to the authenticated Government College of Engineering wallet.</p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 5 OF 8</span>
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 2 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================================================= PAGE 6 ================================================================= -->
+  <!-- ================================= PAGE 3: ADMIN LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · ECONOMIC ENFORCEMENT</div>
-      <div class="header-meta">STAKE PROTECTION VS. DELINQUENCY SLASHING</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · CENTRAL CONTROLLER</div>
+      <div class="header-meta">SCREEN 2: PRE-EXAM LOCKED COUNTDOWN</div>
     </div>
 
-    <div class="page-content">
-      <h2>6. Custodian Duty Fulfillment & Economic Slashing</h2>
-      <p>
-        Following paper selection, custodians submit their key share for Paper B. The smart contract validates each share against its commitment hash.
-      </p>
-
-      <div class="grid-2">
-        <div>
-          <div class="figure-container">
-            <img src="docs/screenshots/06_staff1_confirmed.png" class="figure-img" style="max-height: 90mm;" alt="Staff 1 Share Confirmed">
-            <div class="figure-caption">
-              <span><b>Figure 6:</b> Custodian 1 Screen (<span class="mono">#/staff/1</span>) — Paper B Share confirmed; 1.00 ETH protected.</span>
-              <span class="badge badge-mint">Deposit Safe</span>
-            </div>
-          </div>
-          <div class="card" style="font-size: 7.5pt;">
-            <b>Honest Custodian (Staff 1, 2, 3):</b>
-            <br>Submitted valid entropy seeds and Paper B Shamir pieces within challenge windows. Their 1.00 ETH stake remains intact for post-exam withdrawal.
-          </div>
-        </div>
-        <div>
-          <div class="figure-container">
-            <img src="docs/screenshots/07_staff4_slashed.png" class="figure-img" style="max-height: 90mm;" alt="Staff 4 Slashed">
-            <div class="figure-caption">
-              <span><b>Figure 7:</b> Custodian 4 Screen (<span class="mono">#/staff/4</span>) — Delinquency detected; 50% deposit slashed.</span>
-              <span class="badge badge-red">Slashed -0.50 ETH</span>
-            </div>
-          </div>
-          <div class="card" style="font-size: 7.5pt;">
-            <b>Delinquent Custodian (Staff 4, 5):</b>
-            <br>Missed seed and reveal windows. Calling <span class="mono">penalise()</span> slashes 50% of their deposit (0.50 ETH each), permanently locking it in the treasury.
-          </div>
-        </div>
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Admin Portal — Phase 1: Exam Countdown (<span class="mono">#/admin</span>)</h2>
+        <span class="badge badge-amber">Locked Countdown (00:01:37)</span>
       </div>
+      <p style="color: #475569; font-size: 8pt;">
+        The central administrator portal displaying the live temporal lock countdown, holographic 3-of-5 threshold quorum engine, custodian status cards, and simulated EVM time-warp controls.
+      </p>
+    </div>
 
-      <div class="card" style="margin-top: 4px;">
-        <h3>Fraud Proof Demonstration: Tampered Key Rejection</h3>
-        <p style="font-size: 8pt; margin: 0 0 4px 0;">
-          To verify tamper-resistance, an adversarial test was executed: Staff 1 flipped a single byte of their key piece before submission. The transaction was instantly reverted by <span class="mono">ExamVault.sol</span>:
-        </p>
-        <div style="background: #ffffff; border: 1px solid #fecaca; color: #991b1b; border-radius: 4px; padding: 4px 8px; margin: 2px 0; font-family: ui-monospace, monospace; font-size: 7pt;">
-          VM Exception while processing transaction: reverted with custom error 'HashMismatch()'
-        </div>
-        <p style="font-size: 8pt; margin: 0;">
-          This proves that no corrupted or fraudulent shares can pollute the secret reconstruction pipeline.
-        </p>
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_admin_locked}" class="screenshot-img" alt="Admin Portal Locked Countdown">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">⏱️ Monotonic Chain Clock</div>
+        <p class="callout-desc">Live countdown synchronizes with Ethereum block timestamps. Any early reveal attempts are rejected with <span class="mono">TooEarly()</span>.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">⚡ Fast-Forward Controls</div>
+        <p class="callout-desc">Developer action buttons allow simulating time advancement (<span class="mono">evm_increaseTime</span>) for live evaluation without multi-hour waits.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🛡️ 0/3 Entropy Seeds</div>
+        <p class="callout-desc">Quorum engine dial shows 0/3 seeds collected. All 5 custodians show <span class="mono">Pending</span> with sealed fingerprints in contract storage.</p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 6 OF 8</span>
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 3 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================================================= PAGE 7 ================================================================= -->
+  <!-- ================================= PAGE 4: STAFF LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · DECENTRALIZED DOWNLOAD & DECRYPT</div>
-      <div class="header-meta">SOULBOUND AUTHENTICATION & IPFS DECRYPTION</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
+      <div class="header-meta">SCREEN 3: PRE-DEADLINE KEY PROTECTION</div>
     </div>
 
-    <div class="page-content">
-      <h2>7. Exam Centre Authentication, Download & Decryption</h2>
-      <p>
-        With 3 verified pieces on-chain, <span class="mono">ExamVault</span> marks Paper B as <span class="mono">isUnlocked = true</span>. Authorized exam centres can now trigger autonomous local decryption.
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Key Custodian 1 Portal — Locked Duty (<span class="mono">#/staff/1</span>)</h2>
+        <span class="badge badge-amber">Duties Locked Until Deadline</span>
+      </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Custodian 1's secure workstation during the pre-exam countdown. Shows the custodian's 1.00 ETH staked deposit, sealed cryptographic fingerprints for candidate papers, and locked submission buttons.
       </p>
+    </div>
 
-      <div class="figure-container">
-        <img src="docs/screenshots/05_college_unlocked.png" class="figure-img" style="max-height: 100mm;" alt="College Portal Unlocked">
-        <div class="figure-caption">
-          <span><b>Figure 8:</b> Exam Centre Screen (<span class="mono">#/college</span>) — ERC-5192 Soulbound Token verified; Paper B Decryption Ready.</span>
-          <span class="badge badge-mint">Decryption Ready</span>
-        </div>
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_staff_locked}" class="screenshot-img" alt="Staff Portal Locked">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">💼 1.00 ETH Staked Escrow</div>
+        <p class="callout-desc">Confirms custodian has 1.00 ETH locked in contract storage, creating economic skin-in-the-game to guarantee timely participation.</p>
       </div>
-
-      <div class="grid-3">
-        <div class="card">
-          <h3>1. Soulbound Gate</h3>
-          <p style="font-size: 7.5pt; margin: 0;">
-            The college wallet is checked for non-transferable Token #1. Unauthorized venues are rejected on-chain with <span class="mono">NoToken()</span>.
-          </p>
-        </div>
-        <div class="card">
-          <h3>2. IPFS Fetch & Hash Check</h3>
-          <p style="font-size: 7.5pt; margin: 0;">
-            Ciphertext is pulled by CID (<span class="mono">bafkreifbau...</span>). Its Keccak-256 fingerprint matches the on-chain hash (<span class="mono">0xdf1984...</span>) byte-for-byte.
-          </p>
-        </div>
-        <div class="card">
-          <h3>3. Browser-Local AES Decrypt</h3>
-          <p style="font-size: 7.5pt; margin: 0;">
-            WebCrypto reconstructs the 256-bit AES key from the 3 Shamir shares and decrypts the exam markdown in memory with zero server exposure.
-          </p>
-        </div>
+      <div class="callout-item">
+        <div class="callout-title">🔐 Candidate Fingerprints</div>
+        <p class="callout-desc">Displays Keccak-256 hashes of candidate Shamir shares for Papers A, B, and C. The custodian does not yet know which will be drawn.</p>
       </div>
-
-      <div class="card" style="margin-top: 4px;">
-        <h3>Decrypted Question Paper Verification Output (Console Proof)</h3>
-        <div style="background: #0f172a; color: #38bdf8; border-radius: 4px; padding: 6px 10px; font-family: ui-monospace, monospace; font-size: 7pt; line-height: 1.35;">
-          [✓] Govt. College of Engineering (token #1) -> download logged on-chain<br>
-          [✓] Fetched ciphertext from IPFS: frontend/public/ipfs/bafkreifbaulef2rk7yujzggohrf6l5icbmy4fgjruduvusy62xf23eqrky<br>
-          [✓] Keccak-256 Check: 0xdf19843b44de545171d6d200dcbae3db187c491c126351db77dd8e03c07a4614 -> MATCH<br>
-          [✓] Shamir GF(256) Reassembly: 3 pieces combined -> AES-256 Key 0x8a94bc72...<br>
-          [✓] Decrypted Paper: "# Data Structures and Algorithms — Semester 5 — Set B (100 Marks)"
-        </div>
+      <div class="callout-item">
+        <div class="callout-title">🚫 Submission Guarded</div>
+        <p class="callout-desc">Seed and piece submission buttons are completely locked with clear warning banners until the on-chain deadline is reached.</p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 7 OF 8</span>
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 4 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================================================= PAGE 8 ================================================================= -->
+  <!-- ================================= PAGE 5: COLLEGE LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · AUDIT & VERIFICATION MATRIX</div>
-      <div class="header-meta">TEST MATRIX & CRYPTOGRAPHIC SECURITY PROOFS</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · EXAM CENTRE VENUE</div>
+      <div class="header-meta">SCREEN 4: PRE-EXAM DOWNLOAD RESTRICTIONS</div>
     </div>
 
-    <div class="page-content">
-      <h2>8. Complete Test Matrix & Threat Model Audit</h2>
-      <p>
-        The complete platform was subjected to comprehensive automated test suites and penetration simulation. All 89 test cases passed.
-      </p>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Category</th>
-            <th>Test Suite Description</th>
-            <th>Test Count</th>
-            <th>Execution Time</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Access Control & Setup</td>
-            <td>Admin-only registration, duplicate protection, zero-address rejection</td>
-            <td>12 Tests</td>
-            <td>340 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Staking & Collateral</td>
-            <td>Accumulated staking, minimum stake requirement, post-exam freeze</td>
-            <td>4 Tests</td>
-            <td>115 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Commitment Fingerprints</td>
-            <td>Off-chain vs on-chain Keccak-256 validation, uncommitted rejection</td>
-            <td>6 Tests</td>
-            <td>180 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Seed Reveal & Draw</td>
-            <td>Pre-deadline rejection, hash mismatch, XOR entropy distribution</td>
-            <td>14 Tests</td>
-            <td>620 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Piece Reveal & Quorum</td>
-            <td>Threshold verification, non-selected paper rejection, replay block</td>
-            <td>9 Tests</td>
-            <td>510 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Soulbound Token</td>
-            <td>ERC-5192 locked view, blocked transferFrom/approvals, vault ownership</td>
-            <td>5 Tests</td>
-            <td>190 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Slashing & Withdrawal</td>
-            <td>Auto-slash delinquent custodians, honest stake refund, treasury lock</td>
-            <td>12 Tests</td>
-            <td>820 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Postpone & Recovery</td>
-            <td>Quorum failure aborts, unlocked exam un-postponable, emergency reset</td>
-            <td>4 Tests</td>
-            <td>310 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-          <tr>
-            <td>Threshold Cryptography</td>
-            <td>Shamir 3-of-5 all 10 combinations, AES-256-GCM authenticated envelope</td>
-            <td>23 Tests</td>
-            <td>1915 ms</td>
-            <td><span class="badge badge-mint">PASS (100%)</span></td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="card" style="margin-bottom: 6px;">
-        <h3>Security Guarantee Summary</h3>
-        <table style="margin: 0;">
-          <tbody>
-            <tr>
-              <td style="width: 28%;"><b>Collusion Resistance:</b></td>
-              <td>Any 2 corrupted custodians have zero mathematical information about the key ($GF(256)$ Shamir security).</td>
-            </tr>
-            <tr>
-              <td><b>Insider Tamper Proof:</b></td>
-              <td>Submitting a modified key share fails on-chain commitment check (<span class="mono">HashMismatch</span>).</td>
-            </tr>
-            <tr>
-              <td><b>Leak-Proof Transit:</b></td>
-              <td>Plaintext questions exist exclusively in student exam hall browser memory upon arrival of all 3 shares.</td>
-            </tr>
-            <tr>
-              <td><b>Sybil Resistance:</b></td>
-              <td>ERC-5192 Soulbound Access Tokens prevent exam centres from transferring or selling download rights.</td>
-            </tr>
-          </tbody>
-        </table>
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>College Portal — Locked Pending Quorum (<span class="mono">#/college</span>)</h2>
+        <span class="badge badge-amber">Awaiting 3-of-5 Custodian Keys</span>
       </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Authorized examination venue portal (Govt. College of Engineering) during the countdown. Shows Soulbound Token #1 authentication and disabled download buttons preventing premature paper access.
+      </p>
+    </div>
 
-      <div class="card card-highlight">
-        <h3 style="color: #065f46; margin-top: 0;">System Verification Conclusion</h3>
-        <p style="font-size: 7.5pt; margin: 0;">
-          <b>Blockchain Exam Vault</b> demonstrates an end-to-end operational, tamper-proof, and decentralized question paper management workflow. All lock timings, smart contract assertions, cryptographic reassemblies, and economic penalty mechanisms are fully validated and production-ready.
-        </p>
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_college_locked}" class="screenshot-img" alt="College Portal Locked">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🎓 ERC-5192 Soulbound #1</div>
+        <p class="callout-desc">Verifies that the college wallet owns non-transferable Token #1, preventing credentials from being transferred, rented, or stolen.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🔒 Download Disabled</div>
+        <p class="callout-desc">Download button is disabled with message <span class="mono">00:00:00 (LOCKED)</span>. Calling contract reverts with <span class="mono">PaperLocked()</span>.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">⭕ 0/3 Keys Collected</div>
+        <p class="callout-desc">Quorum progress ring is at 0%. At least 3 independent key custodians must submit authentic pieces before decryption can occur.</p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>EXAMVAULT SYSTEM DEMONSTRATION REPORT</span>
-      <span>PAGE 8 OF 8</span>
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 5 OF 9</span>
+    </div>
+  </div>
+
+  <!-- ================================= PAGE 6: ADMIN UNLOCKED UI ================================= -->
+  <div class="page">
+    <div class="header-bar">
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · CENTRAL CONTROLLER</div>
+      <div class="header-meta">SCREEN 5: PHASE 3 UNLOCKED & PAPER SELECTION</div>
+    </div>
+
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Admin Portal — Phase 3: Unlocked (3/3 Keys) (<span class="mono">#/admin</span>)</h2>
+        <span class="badge badge-mint">Paper B Selected & Unlocked</span>
+      </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Admin portal after exam deadline: Custodians 1, 2, and 3 revealed their seeds, Paper B was chosen on-chain, and 3 matching Shamir shares were submitted. The quorum ring is 100% complete.
+      </p>
+    </div>
+
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_admin_unlocked}" class="screenshot-img" alt="Admin Portal Unlocked">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🎲 Paper B Selected</div>
+        <p class="callout-desc">Determined mathematically on-chain: <span class="mono">keccak256(seed1 ^ seed2 ^ seed3) % 3</span>. Unbiasable and collusion-resistant.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">✓ 3/3 Quorum Ring</div>
+        <p class="callout-desc">Holographic threshold engine dial glows mint with <span class="mono">UNLOCKED</span> badge. Threshold $k=3$ Shamir pieces are sealed in storage.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">📜 Immutable Audit Log</div>
+        <p class="callout-desc">Records exact block height and timestamp of college download for regulatory verification and audit compliance.</p>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 6 OF 9</span>
+    </div>
+  </div>
+
+  <!-- ================================= PAGE 7: STAFF CONFIRMED UI ================================= -->
+  <div class="page">
+    <div class="header-bar">
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
+      <div class="header-meta">SCREEN 6: DUTY FULFILLMENT & STAKE PROTECTION</div>
+    </div>
+
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Custodian 1 Portal — Share Confirmed (<span class="mono">#/staff/1</span>)</h2>
+        <span class="badge badge-mint">1.00 ETH Protected (Duty Fulfilled)</span>
+      </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Custodian 1 view showing successful completion of duty: secret seed revealed, Paper B share verified against commitment, 1.00 ETH collateral fully protected, and direct link to exam centre decryption.
+      </p>
+    </div>
+
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_staff1_confirmed}" class="screenshot-img" alt="Staff 1 Confirmed Share">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">✓ Share Confirmed</div>
+        <p class="callout-desc">Disabled button reflects on-chain confirmation: <span class="mono">✓ Paper B Share Confirmed (1.00 ETH Protected)</span>.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🔒 1.00 ETH Secured</div>
+        <p class="callout-desc">Because duties were fulfilled inside challenge windows, the full 1.00 ETH deposit is safe and unlocked for withdrawal.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🏫 Venue Decrypt Link</div>
+        <p class="callout-desc">Provides a direct link to the Exam Centre screen to monitor live decryption and question paper printing.</p>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 7 OF 9</span>
+    </div>
+  </div>
+
+  <!-- ================================= PAGE 8: STAFF SLASHED UI ================================= -->
+  <div class="page">
+    <div class="header-bar">
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
+      <div class="header-meta">SCREEN 7: ECONOMIC SLASHING ENFORCEMENT</div>
+    </div>
+
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Custodian 4 Portal — Slashed Delinquency (<span class="mono">#/staff/4</span>)</h2>
+        <span class="badge badge-red">🚨 50% Deposit Slashed (-0.50 ETH)</span>
+      </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Delinquent Custodian 4 workstation. The custodian failed to submit their entropy seed before the challenge window closed. The smart contract slashed 50% of their deposit, locking 0.50 ETH in the vault treasury.
+      </p>
+    </div>
+
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_staff4_slashed}" class="screenshot-img" alt="Staff 4 Slashed Delinquency">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🚨 Window Expired Banner</div>
+        <p class="callout-desc">Prominent alert: <span class="mono">SEED WINDOW EXPIRED — 50% STAKE (0.50 ETH) SUBJECT TO SLASHING</span>.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">💸 Economic Penalty</div>
+        <p class="callout-desc">Deposit balance drops from 1.00 ETH to 0.50 ETH. The forfeited 0.50 ETH remains locked in smart contract treasury forever.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🚫 Revert Crash Guard</div>
+        <p class="callout-desc">Button is disabled as <span class="mono">🚨 Seed Window Expired (0.50 ETH Slashed)</span>, preventing unhandled revert crashes.</p>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 8 OF 9</span>
+    </div>
+  </div>
+
+  <!-- ================================= PAGE 9: COLLEGE UNLOCKED UI ================================= -->
+  <div class="page">
+    <div class="header-bar">
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · EXAM CENTRE VENUE</div>
+      <div class="header-meta">SCREEN 8: PAPER DECRYPTION & PLAINText DELIVERY</div>
+    </div>
+
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>College Portal — Decryption Ready & Download (<span class="mono">#/college</span>)</h2>
+        <span class="badge badge-mint">Decryption Ready (Quorum Met)</span>
+      </div>
+      <p style="color: #475569; font-size: 8pt;">
+        Authorized examination centre view with full 3-of-5 quorum reached. Invigilators can trigger Download & Decrypt to reassemble the AES-256 key from Shamir pieces, verify IPFS hashes, and print the official paper.
+      </p>
+    </div>
+
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_college_unlocked}" class="screenshot-img" alt="College Portal Decryption Ready">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🔓 Download & Decrypt Ready</div>
+        <p class="callout-desc">Button illuminates mint: <span class="mono">🔓 Download & Decrypt Question Paper</span>. Invokes in-memory WebCrypto decryption.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🌐 IPFS Content Match</div>
+        <p class="callout-desc">Ciphertext CID is retrieved from IPFS and matched byte-for-byte against the on-chain Keccak-256 fingerprint (<span class="mono">0xdf1984...</span>).</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🔑 Zero-Server In-Memory Key</div>
+        <p class="callout-desc">AES-256 key is reassembled off-chain in local browser RAM via Shamir Lagrange interpolation over GF(256).</p>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>PAGE 9 OF 9</span>
     </div>
   </div>
 
@@ -797,13 +578,14 @@ HTML_CONTENT = """<!DOCTYPE html>
 """
 
 def main():
-    print("[1] Writing report HTML template...")
+    print("[1] Building HTML with Base64 Embedded Frontend Screenshots...")
+    html_content = build_html()
     html_path = "docs/report.html"
     pdf_path = "Blockchain_Exam_Vault_Demonstration_Report.pdf"
 
     with open(html_path, "w", encoding="utf-8") as f:
-        f.write(HTML_CONTENT)
-    print(f"    Written to {html_path}")
+        f.write(html_content)
+    print(f"    Written to {html_path} ({len(html_content)/1024:.1f} KB)")
 
     print("[2] Compiling PDF via headless Google Chrome...")
     cmd = [
