@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generates the comprehensive PDF demonstration report for Blockchain Exam Vault
-with real, full-resolution frontend UI screenshots embedded via Base64.
+with real, 100% full-height un-cropped frontend UI screenshots embedded via Base64.
 """
 
 import os
@@ -27,11 +27,11 @@ def build_html():
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Blockchain Exam Vault — Frontend UI Operational Demonstration</title>
+<title>Blockchain Exam Vault — Complete Frontend UI Operational Demonstration</title>
 <style>
   @page {{
     size: A4 portrait;
-    margin: 8mm 10mm 8mm 10mm;
+    margin: 6mm 8mm 6mm 8mm;
   }}
 
   * {{
@@ -44,16 +44,16 @@ def build_html():
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     color: #0f172a;
     background: #ffffff;
-    line-height: 1.4;
-    font-size: 8.5pt;
+    line-height: 1.35;
+    font-size: 8pt;
     margin: 0;
     padding: 0;
   }}
 
   .page {{
     page-break-after: always;
-    height: 280mm;
-    max-height: 280mm;
+    height: 284mm;
+    max-height: 284mm;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -71,15 +71,15 @@ def build_html():
     justify-content: space-between;
     align-items: center;
     border-bottom: 2px solid #0f172a;
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    padding-bottom: 3px;
+    margin-bottom: 5px;
     flex-shrink: 0;
   }}
   .header-brand {{
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 9.5pt;
+    font-size: 9pt;
     font-weight: 700;
     color: #0f172a;
     letter-spacing: -0.2px;
@@ -92,7 +92,7 @@ def build_html():
 
   /* Footer */
   .footer-bar {{
-    padding-top: 4px;
+    padding-top: 3px;
     border-top: 1px solid #cbd5e1;
     display: flex;
     justify-content: space-between;
@@ -104,8 +104,8 @@ def build_html():
 
   /* Headings */
   h1 {{ font-size: 16pt; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }}
-  h2 {{ font-size: 11pt; font-weight: 700; color: #0f172a; margin: 0 0 3px 0; }}
-  p {{ margin: 0 0 6px 0; }}
+  h2 {{ font-size: 10.5pt; font-weight: 700; color: #0f172a; margin: 0 0 2px 0; }}
+  p {{ margin: 0 0 4px 0; }}
 
   /* Badges */
   .badge {{
@@ -123,14 +123,14 @@ def build_html():
   .badge-red {{ background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }}
   .badge-blue {{ background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }}
 
-  /* Screenshot hero container */
+  /* Screenshot hero container - Fits 100% full height without cutoff */
   .screenshot-card {{
     border: 1.5px solid #0f172a;
     border-radius: 8px;
     overflow: hidden;
     background: #0c0f17;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
-    margin: 6px 0 8px 0;
+    margin: 4px 0 6px 0;
     flex-grow: 1;
     display: flex;
     align-items: center;
@@ -139,7 +139,7 @@ def build_html():
   .screenshot-img {{
     width: 100%;
     height: 100%;
-    max-height: 178mm;
+    max-height: 206mm;
     object-fit: contain;
     display: block;
     background: #0c0f17;
@@ -149,19 +149,19 @@ def build_html():
   .callout-grid {{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 6px;
+    margin-bottom: 2px;
     flex-shrink: 0;
   }}
   .callout-item {{
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    padding: 6px 8px;
+    padding: 5px 8px;
   }}
   .callout-title {{
     font-weight: 700;
-    font-size: 7.5pt;
+    font-size: 7pt;
     color: #0f172a;
     margin-bottom: 2px;
     display: flex;
@@ -169,9 +169,9 @@ def build_html():
     gap: 4px;
   }}
   .callout-desc {{
-    font-size: 7pt;
+    font-size: 6.5pt;
     color: #475569;
-    line-height: 1.35;
+    line-height: 1.3;
     margin: 0;
   }}
   .mono {{
@@ -182,75 +182,83 @@ def build_html():
 </head>
 <body>
 
-  <!-- ================================= PAGE 1: COVER & OVERVIEW ================================= -->
+  <!-- ================================= PAGE 1: COVER & LIFECYCLE ARCHITECTURE ================================= -->
   <div class="page">
     <div class="header-bar">
       <div class="header-brand">🔒 EXAMVAULT PROTOCOL · ZERO-TRUST ARCHITECTURE</div>
-      <div class="header-meta">UI OPERATIONAL REFERENCE · v1.0.0</div>
+      <div class="header-meta">FULL UI OPERATIONAL AUDIT · v1.0.0</div>
     </div>
 
     <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
       <div style="border-left: 6px solid #0284c7; padding-left: 18px; margin-bottom: 16px;">
-        <span class="badge badge-blue" style="margin-bottom: 6px;">Frontend Interface Verification</span>
+        <span class="badge badge-blue" style="margin-bottom: 6px;">100% Full-Page UI Screenshots</span>
         <h1 style="font-size: 22pt; margin: 4px 0 8px 0;">Blockchain Exam Vault</h1>
         <div style="font-size: 11pt; color: #475569; font-weight: 500; line-height: 1.4;">
-          Visual Walkthrough of the Production Web3 User Interface Across All Examination Lifecycles
+          Complete End-to-End Visual Demonstration Across All 7 Protocol Lifecycle Phases
         </div>
       </div>
 
-      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-        <h2 style="font-size: 11pt; margin-bottom: 6px;">Portal User Interface Architecture</h2>
-        <p style="font-size: 8.5pt; color: #334155;">
-          This document presents authentic, un-cropped screenshots of the active React/Vite decentralized application connected to the local Ethereum node. The platform provides four specialized role-based views:
+      <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+        <h2 style="font-size: 11pt; margin-bottom: 6px;">7-Phase Protocol Lifecycle Flow (Aligned with EXPLANATION.md)</h2>
+        <p style="font-size: 8pt; color: #334155; margin-bottom: 10px;">
+          The screenshots in this report document the authentic, full-length, un-cropped Web3 application in exact chronological sequence:
         </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-            <b style="color: #0284c7;">1. Genesis Audit Portal (<span class="mono">#/setup</span>)</b>
-            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Inspects genesis smart contract deployments, staff registration, collateral staking, and sealed fingerprint commits.</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 1: Genesis Ledger Audit (<span class="mono">#/setup</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Inspects genesis block deployments, 5.0 ETH total collateral staking, and Soulbound access token minting.</p>
           </div>
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-            <b style="color: #0284c7;">2. Central Administrator Portal (<span class="mono">#/admin</span>)</b>
-            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Monitors live countdown, quorum progress dial, fast-forward testing tools, paper selection, and delinquency slashing.</p>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 2 & 3: Locked Countdown & Guards (<span class="mono">#/admin</span>, <span class="mono">#/staff</span>, <span class="mono">#/college</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Monitors immutable time locks, sealed candidate fingerprints (A, B, C), and enforced pre-deadline download blocks.</p>
           </div>
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-            <b style="color: #0284c7;">3. Key Custodians Portal (<span class="mono">#/staff/1..5</span>)</b>
-            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Allows each of the 5 keyholders to submit confidential entropy seeds, reveal Shamir shares, and safeguard their 1.00 ETH deposit.</p>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 4: Entropy Reveal & Paper Draw (<span class="mono">#/admin</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Custodians reveal secret seeds; contract computes deterministic XOR entropy to select Paper B on-chain.</p>
           </div>
-          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-            <b style="color: #0284c7;">4. Exam Centre & Hall Portal (<span class="mono">#/college</span>)</b>
-            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 0;">Gated by ERC-5192 Soulbound Token #1. Decrypts the official paper in-memory once 3 custodian shares are confirmed on-chain.</p>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 5: Key Quorum & Share Confirmation (<span class="mono">#/staff/1</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Custodians submit Shamir pieces for Paper B; contract unlocks vault once 3-of-5 threshold is reached.</p>
+          </div>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 6: Exam Centre Decrypt & Print (<span class="mono">#/college</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Soulbound Token #1 verified, IPFS ciphertext fetched, AES key reassembled in browser RAM, and paper decrypted.</p>
+          </div>
+          <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 7px 9px;">
+            <b style="color: #0284c7;">Phase 7: Economic Slashing Settlement (<span class="mono">#/staff/4</span>)</b>
+            <p style="font-size: 7pt; color: #64748b; margin: 2px 0 0;">Delinquent custodians who missed duties have 50% deposit (0.50 ETH) slashed and permanently locked in treasury.</p>
           </div>
         </div>
       </div>
 
-      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
-        <h3 style="color: #065f46; margin: 0 0 4px 0; font-size: 9pt;">System Test Status: 100% Verified</h3>
-        <p style="font-size: 8pt; color: #166534; margin: 0;">
-          All 89 Hardhat automated test suites passed. The UI demonstrates real-time clock synchronization, anti-tamper rejection, multi-party entropy selection, and automated economic slashing.
+      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px;">
+        <h3 style="color: #065f46; margin: 0 0 3px 0; font-size: 8.5pt;">Complete Negative Security & Anti-Fraud Proofs Verified</h3>
+        <p style="font-size: 7.5pt; color: #166534; margin: 0;">
+          All negative attack vectors (<span class="mono">TooEarly</span>, <span class="mono">HashMismatch</span>, <span class="mono">NoToken</span>, <span class="mono">PaperLocked</span>, <span class="mono">Soulbound</span> transfer rejection, and <span class="mono">postpone</span> on threshold failure) passed with 89/89 automated tests.
         </p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 1 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 2: GENESIS SETUP UI ================================= -->
+  <!-- ================================= PAGE 2: PHASE 1 - GENESIS SETUP UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · GENESIS AUDIT LEDGER</div>
-      <div class="header-meta">SCREEN 1: DEPLOYMENT & STAKING AUDIT</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 1: GENESIS AUDIT</div>
+      <div class="header-meta">SCREEN 1: FULL LEDGER DEPLOYMENT & STAKING</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Genesis Audit Portal (<span class="mono">#/setup</span>)</h2>
+        <h2>Genesis Audit Portal (<span class="mono">#/setup</span>) — Complete Screen</h2>
         <span class="badge badge-mint">Genesis Ledger Active</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Full blockchain transaction ledger from Block #1 through #14 showing smart contract deployments, custodian registrations, 1.00 ETH deposit staking, access token minting, and sealed fingerprint commits.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Full-page blockchain transaction ledger from Block #1 through #14 showing smart contract deployments, 5 custodian registrations, 1.00 ETH staking escrows, access token minting, and sealed fingerprint commits.
       </p>
     </div>
 
@@ -274,25 +282,25 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 2 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 3: ADMIN LOCKED UI ================================= -->
+  <!-- ================================= PAGE 3: PHASE 2/3 - ADMIN LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · CENTRAL CONTROLLER</div>
-      <div class="header-meta">SCREEN 2: PRE-EXAM LOCKED COUNTDOWN</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 2/3: CENTRAL CONTROLLER</div>
+      <div class="header-meta">SCREEN 2: FULL PRE-EXAM LOCKED COUNTDOWN & HASHE</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Admin Portal — Phase 1: Exam Countdown (<span class="mono">#/admin</span>)</h2>
-        <span class="badge badge-amber">Locked Countdown (00:01:37)</span>
+        <h2>Admin Portal — Locked Countdown (<span class="mono">#/admin</span>) — Complete Screen</h2>
+        <span class="badge badge-amber">Locked Countdown (00:01:10)</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        The central administrator portal displaying the live temporal lock countdown, holographic 3-of-5 threshold quorum engine, custodian status cards, and simulated EVM time-warp controls.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Un-cropped administrator control room: shows live monotonic countdown, 3-of-5 threshold quorum engine, candidate paper CIDs, all 15 sealed piece fingerprints, and EVM fast-forward testing tools.
       </p>
     </div>
 
@@ -306,35 +314,35 @@ def build_html():
         <p class="callout-desc">Live countdown synchronizes with Ethereum block timestamps. Any early reveal attempts are rejected with <span class="mono">TooEarly()</span>.</p>
       </div>
       <div class="callout-item">
-        <div class="callout-title">⚡ Fast-Forward Controls</div>
-        <p class="callout-desc">Developer action buttons allow simulating time advancement (<span class="mono">evm_increaseTime</span>) for live evaluation without multi-hour waits.</p>
+        <div class="callout-title">📦 IPFS Candidate Papers</div>
+        <p class="callout-desc">Full table displays CIDs and Keccak-256 hashes for candidate papers A, B, and C. Neither staff nor colleges know which is chosen.</p>
       </div>
       <div class="callout-item">
-        <div class="callout-title">🛡️ 0/3 Entropy Seeds</div>
-        <p class="callout-desc">Quorum engine dial shows 0/3 seeds collected. All 5 custodians show <span class="mono">Pending</span> with sealed fingerprints in contract storage.</p>
+        <div class="callout-title">🛡️ 15/15 Sealed Fingerprints</div>
+        <p class="callout-desc">Lower ledger table confirms all 5 custodians have sealed their 3 candidate piece fingerprints and secret seed commitments.</p>
       </div>
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 3 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 4: STAFF LOCKED UI ================================= -->
+  <!-- ================================= PAGE 4: PHASE 3 - STAFF LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
-      <div class="header-meta">SCREEN 3: PRE-DEADLINE KEY PROTECTION</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 3: KEY CUSTODIAN WORKSTATION</div>
+      <div class="header-meta">SCREEN 3: FULL PRE-DEADLINE DUTY & COMMITMENT VIEW</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Key Custodian 1 Portal — Locked Duty (<span class="mono">#/staff/1</span>)</h2>
+        <h2>Key Custodian 1 Portal — Locked Phase (<span class="mono">#/staff/1</span>) — Complete Screen</h2>
         <span class="badge badge-amber">Duties Locked Until Deadline</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Custodian 1's secure workstation during the pre-exam countdown. Shows the custodian's 1.00 ETH staked deposit, sealed cryptographic fingerprints for candidate papers, and locked submission buttons.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Complete full-height Custodian 1 workstation: shows 1.00 ETH staked deposit, sealed cryptographic fingerprints for candidate papers A, B, C, upload file area, and locked submission buttons.
       </p>
     </div>
 
@@ -358,25 +366,25 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 4 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 5: COLLEGE LOCKED UI ================================= -->
+  <!-- ================================= PAGE 5: PHASE 3 - COLLEGE LOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · EXAM CENTRE VENUE</div>
-      <div class="header-meta">SCREEN 4: PRE-EXAM DOWNLOAD RESTRICTIONS</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 3: EXAM CENTRE VENUE</div>
+      <div class="header-meta">SCREEN 4: FULL PRE-EXAM ACCESS CONTROL & SECURITY CREDENTIALS</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>College Portal — Locked Pending Quorum (<span class="mono">#/college</span>)</h2>
+        <h2>College Portal — Locked State (<span class="mono">#/college</span>) — Complete Screen</h2>
         <span class="badge badge-amber">Awaiting 3-of-5 Custodian Keys</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Authorized examination venue portal (Govt. College of Engineering) during the countdown. Shows Soulbound Token #1 authentication and disabled download buttons preventing premature paper access.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Complete authorized college examination centre portal: shows Soulbound Token #1 verification, locked download status, 0/3 key quorum progress dial, and verified security credentials.
       </p>
     </div>
 
@@ -400,25 +408,25 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 5 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 6: ADMIN UNLOCKED UI ================================= -->
+  <!-- ================================= PAGE 6: PHASE 4 - ADMIN UNLOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · CENTRAL CONTROLLER</div>
-      <div class="header-meta">SCREEN 5: PHASE 3 UNLOCKED & PAPER SELECTION</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 4/5: CENTRAL CONTROLLER</div>
+      <div class="header-meta">SCREEN 5: FULL CONSENSUS DRAW & 3/3 QUORUM UNLOCKED</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Admin Portal — Phase 3: Unlocked (3/3 Keys) (<span class="mono">#/admin</span>)</h2>
+        <h2>Admin Portal — Phase 3: Unlocked (<span class="mono">#/admin</span>) — Complete Screen</h2>
         <span class="badge badge-mint">Paper B Selected & Unlocked</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Admin portal after exam deadline: Custodians 1, 2, and 3 revealed their seeds, Paper B was chosen on-chain, and 3 matching Shamir shares were submitted. The quorum ring is 100% complete.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Full-height admin control room after deadline: Custodians 1, 2, 3 revealed seeds, Paper B selected via XOR entropy, 3 Shamir pieces submitted, and download audit log verified.
       </p>
     </div>
 
@@ -442,25 +450,25 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 6 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 7: STAFF CONFIRMED UI ================================= -->
+  <!-- ================================= PAGE 7: PHASE 5 - STAFF CONFIRMED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
-      <div class="header-meta">SCREEN 6: DUTY FULFILLMENT & STAKE PROTECTION</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 5: KEY CUSTODIAN PORTAL</div>
+      <div class="header-meta">SCREEN 6: FULL KEY SHARE CONFIRMATION & STAKE PROTECTION</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Custodian 1 Portal — Share Confirmed (<span class="mono">#/staff/1</span>)</h2>
+        <h2>Custodian 1 Portal — Share Confirmed (<span class="mono">#/staff/1</span>) — Complete Screen</h2>
         <span class="badge badge-mint">1.00 ETH Protected (Duty Fulfilled)</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Custodian 1 view showing successful completion of duty: secret seed revealed, Paper B share verified against commitment, 1.00 ETH collateral fully protected, and direct link to exam centre decryption.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Complete full-height Custodian 1 view: seed revealed, Paper B share verified against commitment, 1.00 ETH collateral fully protected, and direct link to exam centre decryption.
       </p>
     </div>
 
@@ -484,67 +492,25 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 7 OF 9</span>
     </div>
   </div>
 
-  <!-- ================================= PAGE 8: STAFF SLASHED UI ================================= -->
+  <!-- ================================= PAGE 8: PHASE 6 - COLLEGE UNLOCKED UI ================================= -->
   <div class="page">
     <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · KEY CUSTODIAN PORTAL</div>
-      <div class="header-meta">SCREEN 7: ECONOMIC SLASHING ENFORCEMENT</div>
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 6: EXAM CENTRE VENUE</div>
+      <div class="header-meta">SCREEN 7: FULL PAPER DECRYPTION & PLAINTEXT DELIVERY</div>
     </div>
 
     <div style="flex-shrink: 0;">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>Custodian 4 Portal — Slashed Delinquency (<span class="mono">#/staff/4</span>)</h2>
-        <span class="badge badge-red">🚨 50% Deposit Slashed (-0.50 ETH)</span>
-      </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Delinquent Custodian 4 workstation. The custodian failed to submit their entropy seed before the challenge window closed. The smart contract slashed 50% of their deposit, locking 0.50 ETH in the vault treasury.
-      </p>
-    </div>
-
-    <div class="screenshot-card">
-      <img src="data:image/png;base64,{img_staff4_slashed}" class="screenshot-img" alt="Staff 4 Slashed Delinquency">
-    </div>
-
-    <div class="callout-grid">
-      <div class="callout-item">
-        <div class="callout-title">🚨 Window Expired Banner</div>
-        <p class="callout-desc">Prominent alert: <span class="mono">SEED WINDOW EXPIRED — 50% STAKE (0.50 ETH) SUBJECT TO SLASHING</span>.</p>
-      </div>
-      <div class="callout-item">
-        <div class="callout-title">💸 Economic Penalty</div>
-        <p class="callout-desc">Deposit balance drops from 1.00 ETH to 0.50 ETH. The forfeited 0.50 ETH remains locked in smart contract treasury forever.</p>
-      </div>
-      <div class="callout-item">
-        <div class="callout-title">🚫 Revert Crash Guard</div>
-        <p class="callout-desc">Button is disabled as <span class="mono">🚨 Seed Window Expired (0.50 ETH Slashed)</span>, preventing unhandled revert crashes.</p>
-      </div>
-    </div>
-
-    <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
-      <span>PAGE 8 OF 9</span>
-    </div>
-  </div>
-
-  <!-- ================================= PAGE 9: COLLEGE UNLOCKED UI ================================= -->
-  <div class="page">
-    <div class="header-bar">
-      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · EXAM CENTRE VENUE</div>
-      <div class="header-meta">SCREEN 8: PAPER DECRYPTION & PLAINText DELIVERY</div>
-    </div>
-
-    <div style="flex-shrink: 0;">
-      <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2>College Portal — Decryption Ready & Download (<span class="mono">#/college</span>)</h2>
+        <h2>College Portal — Decryption Ready & Download (<span class="mono">#/college</span>) — Complete Screen</h2>
         <span class="badge badge-mint">Decryption Ready (Quorum Met)</span>
       </div>
-      <p style="color: #475569; font-size: 8pt;">
-        Authorized examination centre view with full 3-of-5 quorum reached. Invigilators can trigger Download & Decrypt to reassemble the AES-256 key from Shamir pieces, verify IPFS hashes, and print the official paper.
+      <p style="color: #475569; font-size: 7.5pt;">
+        Complete full-height College view with 3-of-5 quorum reached: shows active Download & Decrypt action, IPFS hash integrity verification, zero-server in-memory WebCrypto reassembly, and full security credentials.
       </p>
     </div>
 
@@ -568,7 +534,49 @@ def build_html():
     </div>
 
     <div class="footer-bar">
-      <span>BLOCKCHAIN EXAM VAULT · UI SCREENSHOT DOCUMENTATION</span>
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
+      <span>PAGE 8 OF 9</span>
+    </div>
+  </div>
+
+  <!-- ================================= PAGE 9: PHASE 7 - STAFF SLASHED UI ================================= -->
+  <div class="page">
+    <div class="header-bar">
+      <div class="header-brand">🔒 EXAMVAULT PROTOCOL · PHASE 7: POST-EXAM SETTLEMENT</div>
+      <div class="header-meta">SCREEN 8: FULL ECONOMIC SLASHING & PENALTY ENFORCEMENT</div>
+    </div>
+
+    <div style="flex-shrink: 0;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2>Custodian 4 Portal — Slashed Delinquency (<span class="mono">#/staff/4</span>) — Complete Screen</h2>
+        <span class="badge badge-red">🚨 50% Deposit Slashed (-0.50 ETH)</span>
+      </div>
+      <p style="color: #475569; font-size: 7.5pt;">
+        Complete full-height Delinquent Custodian 4 workstation: shows expired window alert, slashing breakdown (0.50 ETH forfeited to treasury), disabled revert-guard button, and cryptographic security architecture.
+      </p>
+    </div>
+
+    <div class="screenshot-card">
+      <img src="data:image/png;base64,{img_staff4_slashed}" class="screenshot-img" alt="Staff 4 Slashed Delinquency">
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout-item">
+        <div class="callout-title">🚨 Window Expired Banner</div>
+        <p class="callout-desc">Prominent alert: <span class="mono">SEED WINDOW EXPIRED — 50% STAKE (0.50 ETH) SUBJECT TO SLASHING</span>.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">💸 Economic Penalty</div>
+        <p class="callout-desc">Deposit balance drops from 1.00 ETH to 0.50 ETH. The forfeited 0.50 ETH remains locked in smart contract treasury forever.</p>
+      </div>
+      <div class="callout-item">
+        <div class="callout-title">🚫 Revert Crash Guard</div>
+        <p class="callout-desc">Button is disabled as <span class="mono">🚨 Seed Window Expired (0.50 ETH Slashed)</span>, preventing unhandled revert crashes.</p>
+      </div>
+    </div>
+
+    <div class="footer-bar">
+      <span>BLOCKCHAIN EXAM VAULT · FULL-PAGE UI DEMONSTRATION</span>
       <span>PAGE 9 OF 9</span>
     </div>
   </div>
@@ -578,7 +586,7 @@ def build_html():
 """
 
 def main():
-    print("[1] Building HTML with Base64 Embedded Frontend Screenshots...")
+    print("[1] Building HTML with 100% Full-Height Base64 Embedded Frontend Screenshots...")
     html_content = build_html()
     html_path = "docs/report.html"
     pdf_path = "Blockchain_Exam_Vault_Demonstration_Report.pdf"
